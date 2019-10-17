@@ -1,4 +1,4 @@
-from sedml_import import *
+from .sedml_import import *
 import libsedml
 import libsbml
 import shutil

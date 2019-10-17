@@ -4,7 +4,7 @@ import urllib.request
 import shutil
 import json
 import logging
-from logging_util import LOGGER_NAME
+from .logging_util import LOGGER_NAME
 
 
 logger = logging.getLogger(LOGGER_NAME)
