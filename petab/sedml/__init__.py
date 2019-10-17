@@ -1,1 +1,1 @@
-from sedml2petab import sedml2petab
+from .sedml2petab import sedml2petab
