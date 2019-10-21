@@ -1,4 +1,4 @@
-from sedml_import import *
+from .sedml_import import *
 import os
 
 def downloadAllSEDML(sedml_path, sedml_file_name):
