@@ -1,7 +1,7 @@
 from sedml_import import *
 import os
 
-def downloadSEDML(sedml_path, sedml_file_name):
+def downloadAllSEDML(sedml_path, sedml_file_name):
 
     ########### create folder for all sedml and sbml files ##############
     if not os.path.exists('./sedml_files'):

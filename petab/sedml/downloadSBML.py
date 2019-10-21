@@ -2,7 +2,7 @@ import libsedml
 import libsbml
 from sedml_import import *
 
-def downloadSBML(sedml_save_path, sbml_save_path):
+def downloadAllSBML(sedml_save_path, sbml_save_path):
 
     sedml_file = libsedml.readSedML(sedml_save_path)
 

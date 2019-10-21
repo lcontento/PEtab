@@ -4,7 +4,8 @@ import libsbml
 import shutil
 from .downloadSBML import *
 from .downloadSEDML import *
-
+from getObservables import *
+from .getExperimentalData import *
 
 
 def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
@@ -23,14 +24,17 @@ def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
     """
 
     ######## download sedml file #########
-    sedml_save_path, sbml_save_path = downloadSEDML(sedml_path, sedml_file_name)
+    sedml_save_path, sbml_save_path = downloadAllSEDML(sedml_path, sedml_file_name)
 
     ######## download sbml files #########
-    downloadSBML(sedml_save_path, sbml_save_path)
+    downloadAllSBML(sedml_save_path, sbml_save_path)
 
     sbml_file = libsbml.readSBML(sbml_save_path)
 
     ####### add observables to sbml file #######
-    a = 4
+    new_sbml_path = getAllObservables(sedml_save_path, sbml_save_path)
+
+    ####### download experimental data
+    getAllExperimentalDataFiles(sedml_path, sedml_file_name)
 
     ####### create petab folder #########
