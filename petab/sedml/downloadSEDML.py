@@ -23,9 +23,8 @@ def downloadAllSEDML(sedml_path, sedml_file_name):
 
     else:
         ############## copy sedml + download sbml + open sbml #################
-        shutil.copyfile(sedml_path, sedml_save_path + '/' + sedml_file_name)
-        sedml_save_path = sedml_save_path + '/' + sedml_file_name
-        sedml_file = libsedml.readSedML(sedml_save_path)
+        shutil.copyfile(sedml_path, sedml_save_path + '/' + sedml_file_name + '/' + sedml_file_name + '.sedml')
+        sedml_save_path = sedml_save_path + '/' + sedml_file_name + '/' + sedml_file_name + '.sedml'
 
 
     return sedml_save_path, sbml_save_path

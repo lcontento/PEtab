@@ -139,7 +139,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
 
                         if num_par == 0:                                                                                # parameter from each observable
                             print(sedml_file_name + '_' + iData + '_' + obs_Id + ' has no parameters as observables!')
-                            new_observables.append(pd.Series('NaN'))
+                            #new_observables.append(pd.Series('NaN'))
                             #if data_generator_name == new_species[0]:                                                   ########## error: some sedml observables don't have a name
                                 #for iNumber in range(0, len(time_data)):
                                     #new_observables.append(pd.Series('NaN'))
@@ -172,7 +172,6 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                                 new_observables = pd.Series(new_observables)
 
 
-
                 # set input
                 df_new['observableId'] = new_species
                 df_new['measurment'] = new_measurment
@@ -190,7 +189,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                 df = df.append(df_new, ignore_index=True)
 
             #### save data frame as .tsv
-            df.to_csv('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '_' + iData + '.tsv', sep='\t', index=False)
+            df.to_csv('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '.tsv', sep='\t', index=False)
 
     else:
         print(sedml_file_name + ' has no experimental data file!')
