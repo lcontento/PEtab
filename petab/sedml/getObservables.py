@@ -8,45 +8,50 @@ import importlib
 
 
 
-def getAllObservables(iSEDML, sbml_save_path):
-
+def getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id):
 
     # important paths
-    base_path_sedml = './sedml_models'
-    sedml_path = './sedml_models/' + iSEDML + '/' + iSEDML + '.sedml'
-    sbml_path = './sedml_models/' + iSEDML + '/sbml_models/' + core_iSbml + '.sbml'
-    new_sbml_path = base_path_sedml + '/' + iSEDML + '/sbml_models_with_observables/' + core_iSbml + '_with_observabels.xml'
-    if not os.path.exists(sedml_path):
+    base_path_sedml = './sedml_files'
+    #sedml_path = './sedml_models/' + iSEDML + '/' + iSEDML + '.sedml'
+    #sbml_path = './sedml_models/' + iSEDML + '/sbml_models/' + core_iSbml + '.sbml'
+    new_sbml_save_path = base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables/' + sbml_id + '_with_observabels.xml'
+
+    if not os.path.exists(sedml_save_path):
         print('No Observables!')
     else:
         # new folder for all sbml models with observables
-        if not os.path.exists(base_path_sedml + '/' + iSEDML + '/sbml_models_with_observables'):
-            os.makedirs(base_path_sedml + '/' + iSEDML + '/sbml_models_with_observables')
+        if not os.path.exists(base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables'):
+            os.makedirs(base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables')
+
         # read in sedml file
-        sedml_file = libsedml.readSedML(sedml_path)
+        sedml_file = libsedml.readSedML(sedml_save_path)
+
         # get number of tasks and observables
         num_task = sedml_file.getNumTasks()
         num_obs = sedml_file.getNumDataGenerators()
+
         # read in sbml model
         reader = libsbml.SBMLReader()
-        sbml_file = reader.readSBML(sbml_path)
+        sbml_file = reader.readSBML(sbml_save_path)
         sbml_model = sbml_file.getModel()
+
         for iTask in range(0, num_task):
             task_id = sedml_file.getTask(iTask).getId()
 
             # create list with all parameter-ids to check for uniqueness
-            # all_par_id = []
             almost_all_par_id = []
 
             for iObservable in range(0, num_obs):
                 # get important formula
                 obs_Formula = libsedml.formulaToString(sedml_file.getDataGenerator(iObservable).getMath())    # sbml_file.getModel().getReaction(0).getKineticLaw().getMath()
                 obs_Id = sedml_file.getDataGenerator(iObservable).getId()
+
                 # SBML_model_Id,Observable_Id = obs_Id.split('_',1)
                 new_obs_Id = 'observable_' + obs_Id
+
                 # get variables
                 num_var = sedml_file.getDataGenerator(iObservable).getNumVariables()
-                list_var_id = []
+
                 for iVar in range(0,num_var):
                     var_Id = sedml_file.getDataGenerator(iObservable).getVariable(iVar).getId()
                     target_Id = sedml_file.getDataGenerator(iObservable).getVariable(iVar).getTarget()
@@ -81,21 +86,25 @@ def getAllObservables(iSEDML, sbml_save_path):
                             if len(intersection) != 0:
                                 print('Two or more parameters have the same Id!')
                                 # sys.exit(1)
+
                 # look for correct observables: with target and with task_id == task_ref
-                if sedml_file.getDataGenerator(iObservable).getVariable(0).getTarget() != '':
+                if sedml_file.getDataGenerator(iObservable).getVariable(0).getTarget() != '':   # sedml_file.getDataGenerator(iObservable).getVariable(iVar).getTarget() ?
                     # get task reference
                     task_target = sedml_file.getDataGenerator(iObservable).getVariable(0).getTarget()
                     task_ref = sedml_file.getDataGenerator(iObservable).getVariable(0).getTaskReference()
+
                     if task_id == task_ref:
                         # create formula
                         assignmentRule = sbml_model.createAssignmentRule()
                         assignmentRule.setId(new_obs_Id)
                         assignmentRule.setVariable(new_obs_Id)
                         assignmentRule.setFormula(obs_Formula)
+
                         # create parameter to formula for observables
                         obs_parameter = sbml_model.createParameter()
                         obs_parameter.setId(new_obs_Id)
                         obs_parameter.setConstant(False)
+
                         # create parameter to formula for parameters
                         for iCount in range(0, num_par):
                             iPar_id = list_par_id[iCount]
@@ -104,6 +113,6 @@ def getAllObservables(iSEDML, sbml_save_path):
                             parameter.setId(iPar_id)
                             parameter.setConstant(False)
                             parameter.setValue(iPar_value)
-        libsbml.writeSBMLToFile(sbml_file, new_sbml_path)
+        libsbml.writeSBMLToFile(sbml_file, new_sbml_save_path)
 
-    return new_sbml_path
+    return new_sbml_save_path
