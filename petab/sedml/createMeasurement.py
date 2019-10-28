@@ -21,7 +21,7 @@ def measurementPETAB(exp_rearranged_save_path, sedml_file_name):
                                          'observableTransformation', 'noiseDistribution'], data=[])
 
     # open rearranged experimental condition file to fill the new data frame
-    # unused columns simply remain empty
+    # unused columns can simply remain empty
     exp_rearranged = pd.read_csv(exp_rearranged_save_path, sep='\t')
     MeasDataFile['observableId'] = exp_rearranged['observableId']
     MeasDataFile['measurement'] = exp_rearranged['measurement']
