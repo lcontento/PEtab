@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import numpy as np
 import libsedml
-import libsbml
 import sys
 
 
@@ -21,7 +20,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
 
             # build/reset new data frame
             df = pd.DataFrame(columns=['observableId', 'preequilibrationConditionId', 'simulationConditionId',
-                                       'measurment', 'time', 'observableParameters', 'noiseParameters',
+                                       'measurement', 'time', 'observableParameters', 'noiseParameters',
                                        'observableTransformation', 'noiseDistribution'], data=[])
 
             # read .xls file
@@ -80,8 +79,8 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
 
                 # build new data frame
                 df_new = pd.DataFrame(columns=['observableId', 'preequilibrationConditionId', 'simulationConditionId',
-                                           'measurment', 'time', 'observableParameters', 'noiseParameters',
-                                           'observableTransformation', 'noiseDistribution'], data=[])
+                                               'measurement', 'time', 'observableParameters', 'noiseParameters',
+                                               'observableTransformation', 'noiseDistribution'], data=[])
 
                 ############# get input
                 ###### species
@@ -90,11 +89,11 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                     new_species.append(columns[iDataFrame + counter])
                 new_species = pd.Series(new_species)
 
-                ###### measurment + reindex from e.g. [1:14] to [0:13]
-                new_measurment = expdata_file[columns[iDataFrame + counter]]
-                if str(new_measurment[0]).isdigit() == False:
-                    del new_measurment[0]
-                    new_measurment.reset_index(inplace=True, drop=True)
+                ###### measurement + reindex from e.g. [1:14] to [0:13]
+                new_measurement = expdata_file[columns[iDataFrame + counter]]
+                if str(new_measurement[0]).isdigit() == False:
+                    del new_measurement[0]
+                    new_measurement.reset_index(inplace=True, drop=True)
 
                 ###### observable parameters
                 new_observables = []
@@ -162,7 +161,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                                         # sys.exit(1)
 
                             # get correct observables
-                            if data_generator_name == new_species[0]:                                                   # get list of len(measurment) for all parameters + values of one observable
+                            if data_generator_name == new_species[0]:                                                   # get list of len(measurement) for all parameters + values of one observable
                                 correct_string = list_par_id[0]
                                 del list_par_id[0]
                                 for iObs in list_par_id:
@@ -174,7 +173,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
 
                 # set input
                 df_new['observableId'] = new_species
-                df_new['measurment'] = new_measurment
+                df_new['measurement'] = new_measurement
                 df_new['time'] = time_data
 
                 try:                                                                                                    # short fix
@@ -189,7 +188,8 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                 df = df.append(df_new, ignore_index=True)
 
             #### save data frame as .tsv
-            df.to_csv('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '.tsv', sep='\t', index=False)
+            exp_rearranged_save_path = './sedml_files/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '.tsv'
+            df.to_csv(exp_rearranged_save_path, sep='\t', index=False)
 
     else:
         print(sedml_file_name + ' has no experimental data file!')
@@ -201,3 +201,5 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
         if len(all_files) == 0:
             print('The rearrangement did not work!')
             sys.exit()
+
+    return exp_rearranged_save_path

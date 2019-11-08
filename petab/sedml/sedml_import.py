@@ -96,7 +96,7 @@ def download_all_sbml_models_for_sedml_model(sedml_file, sbml_folder):
         sbml_url = sbml_entry.getSource()
         sbml_file = sbml_folder + "/" + sbml_id + ".sbml"
         download_sbml_model(sbml_url, sbml_file)
-
+    return sbml_file                                                                        # returns only the last save path --- only for i = 1
 
 def download_sbml_model(sbml_url, sbml_file):
     """

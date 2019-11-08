@@ -2,7 +2,6 @@
 
 import pandas as pd
 import os
-import libsedml
 
 
 def measurementPETAB(exp_rearranged_save_path, sedml_file_name):
@@ -31,7 +30,7 @@ def measurementPETAB(exp_rearranged_save_path, sedml_file_name):
     MeasDataFile['noiseDistribution'] = pd.Series(['normal'] * len(MeasDataFile['observableId']))
     for iElement in range(0, len(MeasDataFile['observableId'])):
         noise = 'sigma_' + str(MeasDataFile['observableId'][iElement])
-        MeasDataFile['noiseParameters'][iElement] = noise                                                               # returns lots of warnings --- rewrite?
+        MeasDataFile.at[iElement, 'noiseParameters'] = noise                                                               # returns lots of warnings --- rewrite?
 
     # possible it has to be user-defined
     MeasDataFile['observableTransformation'] = pd.Series(['log10'] * len(MeasDataFile['observableId']))

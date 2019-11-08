@@ -1,7 +1,7 @@
 from .sedml_import import *
+import shutil
 import libsedml
 import libsbml
-import shutil
 from .downloadSBML import *
 from .downloadSEDML import *
 from .getObservables import *
@@ -10,6 +10,8 @@ from .rearrangeExperimentalData import *
 from .createExperimental import *
 from .createMeasurement import *
 from .createParameters import *
+from .extendSBML import *
+from .petabFolder import *
 
 
 def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
@@ -39,6 +41,9 @@ def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
     # rearrange experimental data file into petab format
     exp_rearrange_save_path = rearrange2PEtab(sedml_path, sedml_file_name)
 
+   # add observables to sbml file
+    new_sbml_save_path = getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id)
+
     # create experimental_condition file
     expconfile_save_path = experimentalPETAB(sedml_save_path, sedml_file_name)
 
@@ -46,18 +51,10 @@ def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
     measdatafile_save_path = measurementPETAB(exp_rearrange_save_path, sedml_file_name)
 
     # create parameters file
-    parfile_save_path = parameterPETAB(sbml_save_path, sedml_file_name, measdatafile_save_path)                         # new_sbml_save_path!
-
-    # add observables to sbml file
-    new_sbml_save_path = getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id)
-
-    ####
-
-    ####
-
-    ####
+    parfile_save_path = parameterPETAB(new_sbml_save_path, sedml_file_name, measdatafile_save_path)
 
     # extend the sbml_file_with_observables by 'noise_', 'sigma_', 'observable_' as [parameters] and [assignment_rules]
+    newest_sbml_save_path = editSBML(new_sbml_save_path, sedml_file_name, parfile_save_path)
 
     # create petab folder with all ingredients
-    a = 4
+    restructureFiles(expconfile_save_path, measdatafile_save_path, parfile_save_path, newest_sbml_save_path, sedml_file_name)

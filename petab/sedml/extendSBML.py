@@ -3,18 +3,20 @@
 import libsbml
 import os
 import pandas as pd
-from ..sbml import add_global_parameter
+import importlib
 
 
-def editSBML(sbml_save_path, sedml_file_name, parameters_save_path):
+def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
 
+    # reload libsbml to work around an error
+    importlib.reload(libsbml)
 
     # create new folder
     if not os.path.exists('./sedml_files/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules'):
         os.makedirs('./sedml_files/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules')
 
     # open SBMl model
-    sbml_file = libsbml.readSBML(sbml_save_path)
+    sbml_file = libsbml.readSBML(new_sbml_save_path)
     sbml_model = sbml_file.getModel()
 
     # read parameters file for the sigma_parameters
@@ -37,14 +39,14 @@ def editSBML(sbml_save_path, sedml_file_name, parameters_save_path):
         p = sbml_model.createParameter()
         p.setId(noise_sigma_observable[iPar])
         p.setName(noise_sigma_observable[iPar])
-        p.setConstant('false')
+        p.setConstant(False)
         p.setValue(1)                                                                                                   # why 1?
 
     # create new assignment rule
     for iAssignmentRule in range(0, len(noise_sigma_observable)):
         if 'sigma_' in noise_sigma_observable[iAssignmentRule]:
             rule = sbml_model.createAssignmentRule()
-            #rule.setId(noise_sigma_observable[iAssignmentRule])
+            rule.setId(noise_sigma_observable[iAssignmentRule])
             rule.setName(noise_sigma_observable[iAssignmentRule])
             rule.setVariable(noise_sigma_observable[iAssignmentRule])
             rule.setFormula(noise_sigma_observable[iAssignmentRule + 1])
@@ -52,17 +54,17 @@ def editSBML(sbml_save_path, sedml_file_name, parameters_save_path):
             continue
         elif 'observable_' in noise_sigma_observable[iAssignmentRule]:
             rule = sbml_model.createAssignmentRule()
-            # rule.setId(noise_sigma_observable[iAssignmentRule])
+            rule.setId(noise_sigma_observable[iAssignmentRule])
             rule.setName(noise_sigma_observable[iAssignmentRule])
             rule.setVariable(noise_sigma_observable[iAssignmentRule])
 
             # get the correct species name for the value
             _,species = noise_sigma_observable[iAssignmentRule].split('observable_')
-            for iSpecies in range(0, len(sbml_model.getNumSpecies())):
+            for iSpecies in range(0, sbml_model.getNumSpecies()):
                 if species == sbml_model.getSpecies(iSpecies).getId():
                     rule.setFormula(species)
                     break
-                elif iSpecies == len(sbml_model.getNumSpecies()) - 1:
+                elif iSpecies == sbml_model.getNumSpecies() - 1:
                     rule.setFormula(sbml_model.getSpecies(0).getId())
 
     # save new sbml model

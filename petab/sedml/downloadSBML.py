@@ -1,5 +1,3 @@
-import libsedml
-import libsbml
 from .sedml_import import *
 
 def downloadAllSBML(sedml_save_path, sbml_save_path):
@@ -14,4 +12,6 @@ def downloadAllSBML(sedml_save_path, sbml_save_path):
         download_sbml_model(sbml_url, sbml_save_path)
     else:
         sbml_save_path = sedml_save_path + '/sbml_folder'
-        download_all_sbml_models_for_sedml_model(sedml_file, sbml_save_path)
+        sbml_save_path = download_all_sbml_models_for_sedml_model(sedml_file, sbml_save_path)
+
+    return sbml_save_path, sbml_id

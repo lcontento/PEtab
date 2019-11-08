@@ -10,11 +10,14 @@ import importlib
 
 def getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id):
 
+    # reload libsbml to work around an error
+    importlib.reload(libsbml)
+
     # important paths
     base_path_sedml = './sedml_files'
     #sedml_path = './sedml_models/' + iSEDML + '/' + iSEDML + '.sedml'
     #sbml_path = './sedml_models/' + iSEDML + '/sbml_models/' + core_iSbml + '.sbml'
-    new_sbml_save_path = base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables/' + sbml_id + '_with_observabels.xml'
+    new_sbml_save_path = base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables/' + sbml_id + '_with_observabels.sbml'
 
     if not os.path.exists(sedml_save_path):
         print('No Observables!')
