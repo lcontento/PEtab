@@ -11,12 +11,12 @@ import sys
 def parameterPETAB(new_sbml_save_path, sedml_file_name, measdatafile_save_path):
 
     # create new folder
-    if not os.path.exists('./sedml_files/' + sedml_file_name + '/parameters'):
-        os.makedirs('./sedml_files/' + sedml_file_name + '/parameters')
+    if not os.path.exists('./sedml2petab/' + sedml_file_name + '/parameters'):
+        os.makedirs('./sedml2petab/' + sedml_file_name + '/parameters')
 
     # save path
     correct_petab_name = 'parameters_' + sedml_file_name + '.tsv'
-    parameter_save_path = './sedml_files/' + sedml_file_name + '/parameters/' + correct_petab_name
+    parameter_save_path = './sedml2petab/' + sedml_file_name + '/parameters/' + correct_petab_name
 
     # create new data frame
     ParFile = pd.DataFrame(columns=['parameterId', 'parameterName', 'parameterScale', 'lowerBound',

@@ -7,12 +7,12 @@ import os
 def measurementPETAB(exp_rearranged_save_path, sedml_file_name):
 
     # create new folder
-    if not os.path.exists('./sedml_files/' + sedml_file_name + '/measurement_data'):
-        os.makedirs('./sedml_files/' + sedml_file_name + '/measurement_data')
+    if not os.path.exists('./sedml2petab/' + sedml_file_name + '/measurement_data'):
+        os.makedirs('./sedml2petab/' + sedml_file_name + '/measurement_data')
 
     # save path
     correct_petab_name = 'measurementData_' + sedml_file_name + '.tsv'
-    measurement_save_path = './sedml_files/' + sedml_file_name + '/measurement_data/' + correct_petab_name
+    measurement_save_path = './sedml2petab/' + sedml_file_name + '/measurement_data/' + correct_petab_name
 
     # create new data frame
     MeasDataFile = pd.DataFrame(columns=['observableId', 'preequilibrationConditionId', 'simulationConditionId',

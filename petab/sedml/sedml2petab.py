@@ -4,9 +4,9 @@ import libsedml
 import libsbml
 from .downloadSBML import *
 from .downloadSEDML import *
-from .getObservables import *
 from .getExperimentalData import *
 from .rearrangeExperimentalData import *
+from .getObservables import *
 from .createExperimental import *
 from .createMeasurement import *
 from .createParameters import *
@@ -15,19 +15,6 @@ from .petabFolder import *
 
 
 def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
-    """
-    [description]
-
-    Parameters
-    ----------
-
-    [...]
-
-    Returns
-    -------
-
-    [...]
-    """
 
     # download sedml file
     sedml_save_path, sbml_save_path = downloadAllSEDML(sedml_path, sedml_file_name)

@@ -7,7 +7,7 @@ import shutil
 def restructureFiles(expconfile_save_path, measdatafile_save_path, parfile_save_path, newest_sbml_save_path, sedml_file_name):
 
     # create new folder for all files
-    final_folder_path = './sedml_files/' + sedml_file_name + '/' + sedml_file_name
+    final_folder_path = './sedml2petab/' + sedml_file_name + '/' + sedml_file_name
     if not os.path.exists(final_folder_path):
         os.makedirs(final_folder_path)
 

@@ -4,15 +4,15 @@ import os
 def downloadAllSEDML(sedml_path, sedml_file_name):
 
     ########### create folder for all sedml and sbml files ##############
-    if not os.path.exists('./sedml_files'):
-        os.makedirs('./sedml_files')
-    if not os.path.exists('./sedml_files/' + sedml_file_name):
-        os.makedirs('./sedml_files/' + sedml_file_name)
-    if not os.path.exists('./sedml_files/' + sedml_file_name + '/sbml_models'):
-        os.makedirs('./sedml_files/' + sedml_file_name + '/sbml_models')
+    if not os.path.exists('./sedml2petab'):
+        os.makedirs('./sedml2petab')
+    if not os.path.exists('./sedml2petab/' + sedml_file_name):
+        os.makedirs('./sedml2petab/' + sedml_file_name)
+    if not os.path.exists('./sedml2petab/' + sedml_file_name + '/sbml_models'):
+        os.makedirs('./sedml2petab/' + sedml_file_name + '/sbml_models')
 
-    sedml_save_path = './sedml_files'
-    sbml_save_path = './sedml_files/' + sedml_file_name + '/sbml_models'
+    sedml_save_path = './sedml2petab'
+    sbml_save_path = './sedml2petab/' + sedml_file_name + '/sbml_models'
 
     if not os.path.isfile(sedml_path):
         ############## download sedml + open sedml + download sbml + open sbml ################

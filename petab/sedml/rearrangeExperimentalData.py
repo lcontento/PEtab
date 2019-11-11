@@ -10,11 +10,11 @@ import sys
 def rearrange2PEtab(sedml_path, sedml_file_name):
 
     # create new folder for all new dataframes
-    if not os.path.exists('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged'):
-        os.makedirs('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged')
+    if not os.path.exists('./sedml2petab/' + sedml_file_name + '/experimental_data_rearranged'):
+        os.makedirs('./sedml2petab/' + sedml_file_name + '/experimental_data_rearranged')
 
-    if os.path.exists('./sedml_files/' + sedml_file_name + '/experimental_data'):
-        list_directory_expdata = sorted(os.listdir('./sedml_files/' + sedml_file_name + '/experimental_data'))
+    if os.path.exists('./sedml2petab/' + sedml_file_name + '/experimental_data'):
+        list_directory_expdata = sorted(os.listdir('./sedml2petab/' + sedml_file_name + '/experimental_data'))
 
         for iData in list_directory_expdata:                                                                            # each exp_data_frame
 
@@ -24,7 +24,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                                        'observableTransformation', 'noiseDistribution'], data=[])
 
             # read .xls file
-            xls_file_path = './sedml_files/' + sedml_file_name + '/experimental_data/' + iData
+            xls_file_path = './sedml2petab/' + sedml_file_name + '/experimental_data/' + iData
             expdata_name, rest = iData.split('.',1)
 
             # count number of sheets in excel file
@@ -188,7 +188,7 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
                 df = df.append(df_new, ignore_index=True)
 
             #### save data frame as .tsv
-            exp_rearranged_save_path = './sedml_files/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '.tsv'
+            exp_rearranged_save_path = './sedml2petab/' + sedml_file_name + '/experimental_data_rearranged/' + sedml_file_name + '.tsv'
             df.to_csv(exp_rearranged_save_path, sep='\t', index=False)
 
     else:
@@ -196,8 +196,8 @@ def rearrange2PEtab(sedml_path, sedml_file_name):
 
 
     # remove all empty 'experimental_data_rearranged' folders
-    if os.path.exists('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged'):
-        all_files = sorted(os.listdir('./sedml_files/' + sedml_file_name + '/experimental_data_rearranged'))
+    if os.path.exists('./sedml2petab/' + sedml_file_name + '/experimental_data_rearranged'):
+        all_files = sorted(os.listdir('./sedml2petab/' + sedml_file_name + '/experimental_data_rearranged'))
         if len(all_files) == 0:
             print('The rearrangement did not work!')
             sys.exit()

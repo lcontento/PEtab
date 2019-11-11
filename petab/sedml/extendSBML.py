@@ -12,8 +12,8 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
     importlib.reload(libsbml)
 
     # create new folder
-    if not os.path.exists('./sedml_files/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules'):
-        os.makedirs('./sedml_files/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules')
+    if not os.path.exists('./sedml2petab/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules'):
+        os.makedirs('./sedml2petab/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules')
 
     # open SBMl model
     sbml_file = libsbml.readSBML(new_sbml_save_path)
@@ -68,7 +68,7 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
                     rule.setFormula(sbml_model.getSpecies(0).getId())
 
     # save new sbml model
-    newest_sbml_save_path = './sedml_files/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules/model_' + sedml_file_name + '.xml'
+    newest_sbml_save_path = './sedml2petab/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules/model_' + sedml_file_name + '.xml'
     libsbml.writeSBMLToFile(sbml_file, newest_sbml_save_path)
 
 

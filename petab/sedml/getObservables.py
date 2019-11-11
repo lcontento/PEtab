@@ -14,7 +14,7 @@ def getAllObservables(sedml_save_path, sbml_save_path, sedml_file_name, sbml_id)
     importlib.reload(libsbml)
 
     # important paths
-    base_path_sedml = './sedml_files'
+    base_path_sedml = './sedml2petab'
     #sedml_path = './sedml_models/' + iSEDML + '/' + iSEDML + '.sedml'
     #sbml_path = './sedml_models/' + iSEDML + '/sbml_models/' + core_iSbml + '.sbml'
     new_sbml_save_path = base_path_sedml + '/' + sedml_file_name + '/sbml_models_with_observables/' + sbml_id + '_with_observabels.sbml'
