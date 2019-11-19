@@ -7,6 +7,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pypesto.visualize
+import libsbml
+import importlib
+importlib.reload(libsbml)
 
 
 
@@ -15,7 +18,8 @@ n_starts = 1
 
 
 # important paths
-model_base_path = './sedml_files/' + iModel + '/' + iModel
+model_base_path = './sedml2petab/' + iModel + '/' + iModel
+#model_base_path = '../../../benchmark-models/hackathon_contributions_new_data_format/Bachmann_MSB2011'
 # model_base_path = './sedml_models/' + iModel
 
 # manage petab problem
