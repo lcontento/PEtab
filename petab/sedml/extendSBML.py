@@ -4,6 +4,7 @@ import libsbml
 import os
 import pandas as pd
 import importlib
+from .changeObservableId import *
 
 
 def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
@@ -20,12 +21,13 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
     sbml_model = sbml_file.getModel()
 
     # read parameters file for the sigma_parameters
+    sigma_parameters = []
     parameters_file = pd.read_csv(parameters_save_path, sep='\t')
     for iPar in range(0, len(parameters_file['parameterId'])):
         if 'sigma_' in parameters_file['parameterId'][iPar]:
-            sigma_parameters = parameters_file['parameterId'][iPar:]
-            sigma_parameters = sigma_parameters.reset_index(drop=True)
-            break
+            sigma_parameters.append(parameters_file['parameterId'][iPar])
+            #sigma_parameters = sigma_parameters.reset_index(drop=True)
+            #break
 
     # transform all sigma_parameter into a 'sigma_', 'noiseParameter1_' and 'observable_' parameter
     noise_sigma_observable = []
@@ -33,6 +35,9 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
         noise_sigma_observable.append(sigma_parameters[iElement])
         noise_sigma_observable.append('noiseParameter1_' + sigma_parameters[iElement].split('sigma_')[1])
         noise_sigma_observable.append('observable_' + sigma_parameters[iElement].split('sigma_')[1])
+
+    # change the observable names to the petab format default names
+    sbml_file = changeObsId(sbml_file, sigma_parameters)
 
     # create new parameters
     for iPar in range(0, len(noise_sigma_observable)):
@@ -52,6 +57,7 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
             rule.setFormula(noise_sigma_observable[iAssignmentRule + 1])
         elif 'noiseParameter1_' in noise_sigma_observable[iAssignmentRule]:
             continue
+        '''
         elif 'observable_' in noise_sigma_observable[iAssignmentRule]:
             rule = sbml_model.createAssignmentRule()
             rule.setId(noise_sigma_observable[iAssignmentRule])
@@ -66,6 +72,7 @@ def editSBML(new_sbml_save_path, sedml_file_name, parameters_save_path):
                     break
                 elif iSpecies == sbml_model.getNumSpecies() - 1:
                     rule.setFormula(sbml_model.getSpecies(0).getId())
+        '''
 
     # save new sbml model
     newest_sbml_save_path = './sedml2petab/' + sedml_file_name + '/sbml_models_with_observables_and_assignment_rules/model_' + sedml_file_name + '.xml'

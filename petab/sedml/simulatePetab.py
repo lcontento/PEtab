@@ -14,8 +14,7 @@ importlib.reload(libsbml)
 
 
 iModel = 'bachmann2011'
-n_starts = 1
-
+n_starts = 3
 
 # important paths
 model_base_path = './sedml2petab/' + iModel + '/' + iModel
