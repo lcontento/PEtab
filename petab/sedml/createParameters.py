@@ -5,7 +5,6 @@ import os
 import libsedml
 import libsbml
 import numpy as np
-import sys
 
 
 def parameterPETAB(new_sbml_save_path, sedml_file_name, measdatafile_save_path):
@@ -98,8 +97,8 @@ def parameterPETAB(new_sbml_save_path, sedml_file_name, measdatafile_save_path):
 
     # possibly it has to be user defined
     ParFile['parameterScale'] = pd.concat([pd.Series(lin_log_list), pd.Series(['log10'] * len(sigma_name)), pd.Series(more_lin_log)], ignore_index=True)
-    ParFile['lowerBound'] = pd.Series(['-8'] * len(ParFile['parameterId']))
-    ParFile['upperBound'] = pd.Series(['8'] * len(ParFile['parameterId']))
+    ParFile['lowerBound'] = pd.Series(['-10'] * len(ParFile['parameterId']))
+    ParFile['upperBound'] = pd.Series(['10'] * len(ParFile['parameterId']))
     ParFile['estimate'] = pd.Series(['1'] * len(ParFile['parameterId']))
 
     # save data frame as .tsv
