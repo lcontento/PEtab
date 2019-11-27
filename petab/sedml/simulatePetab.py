@@ -10,11 +10,12 @@ import pypesto.visualize
 import libsbml
 import importlib
 importlib.reload(libsbml)
+import pickle
 
 
 
 iModel = 'bachmann2011'
-n_starts = 3
+n_starts = 50
 
 # important paths
 model_base_path = './sedml2petab/' + iModel + '/' + iModel
@@ -45,6 +46,16 @@ problem = importer.create_problem(obj)
 engine = pypesto.SingleCoreEngine()
 # engine = pypesto.MultiProcessEngine()
 result = pypesto.minimize(problem=problem, optimizer=optimizer, n_starts=n_starts, engine=engine)
+print(result.optimize_result.as_list(['fval']))
+failed_starts = 0
+fixed_length = len(result.optimize_result.as_list(['fval']))
+for iResult in range(0, fixed_length):
+    if str(result.optimize_result.as_list(['fval'])[fixed_length - iResult - 1]['fval']) == 'inf':
+        del result.optimize_result.list[fixed_length - iResult - 1]
+        failed_starts += 1
+    else:
+        break
+print('failed_starts: ' + str(failed_starts))
 
 # visualize
 ref = pypesto.visualize.create_references(x=petab_problem.x_nominal, fval=obj(petab_problem.x_nominal))
@@ -57,7 +68,6 @@ pypesto.visualize.parameters(result, reference=ref)
 fig2 = plt.gcf()
 fig2.set_size_inches(18.5, 10.5)
 plt.savefig(model_base_path + '/waterfall_parameter_' + str(n_starts) + '_merrors_alternative.pdf')
-print(result.optimize_result.get_for_key('fval'))
 
 # simulated data
 rdatas = obj(result.optimize_result.get_for_key('x')[0], return_dict=True)['rdatas']

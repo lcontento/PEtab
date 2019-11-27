@@ -2,7 +2,6 @@
 
 import libsedml
 import libsbml
-import sys
 import os
 import importlib
 

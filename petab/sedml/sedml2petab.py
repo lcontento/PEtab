@@ -2,8 +2,8 @@ from .sedml_import import *
 import shutil
 import libsedml
 import libsbml
-from .downloadSBML import *
 from .downloadSEDML import *
+from .downloadSBML import *
 from .getExperimentalData import *
 from .rearrangeExperimentalData import *
 from .getObservables import *
