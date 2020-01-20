@@ -1,6 +1,7 @@
-# Optimization problem data format specification
+# PEtab data format specification
 
 This document explains the PEtab data format.
+
 
 ## Purpose
 
@@ -70,8 +71,12 @@ E.g.
 ```
 observable_pErk = observableParameter1_pErk + observableParameter2_pErk*pErk
 ```
-where `observableParameter1_pErk` would be an offset, and `observableParameter2_pErk` a
-scaling parameter for the observable `pErk`. The observable parameter names have the structure: `observableParameter${indexOfObservableParameter}_${observableId}` to facilitate automatic recognition. The specific values or parameters are assigned in the *measurement table*.
+where `observableParameter1_pErk` would be an offset, and
+`observableParameter2_pErk` a scaling parameter for the observable `pErk`.
+The observable parameter names have the structure:
+`observableParameter${indexOfObservableParameter}_${observableId}` to
+facilitate automatic recognition. The specific values or parameters are
+assigned in the *measurement table*.
 
 
 ### Noise model
@@ -89,8 +94,11 @@ e.g., be defined as
 ```
 sigma_pErk = noiseParameter1_pErk + noiseParameter2_pErk*pErk
 ```
-with `noiseParameter1_pErk` denoting the absolute and `noiseParameter2_pErk` the
-relative contribution for the observable `pErk`. The noise parameter names have the structure: `noiseParameter${indexOfNoiseParameter}_${observableId}` to facilitate automatic recognition. The specific values or parameters are assigned in the *measurement table*.
+with `noiseParameter1_pErk` denoting the absolute and `noiseParameter2_pErk`
+the relative contribution for the observable `pErk`. The noise parameter names
+have the structure: `noiseParameter${indexOfNoiseParameter}_${observableId}`
+to facilitate automatic recognition. The specific values or parameters are
+assigned in the *measurement table*.
 
 Any parameters named `noiseParameter${1..n}` *must* be overwritten in the
 `noiseParameters` column of the measurement file (see below).
@@ -157,6 +165,7 @@ where `datasetId` is a necessary column to use particular plotting
 functionality, and `replicateId` is optional, which can be used to group 
 replicates and plot error bars. 
 
+
 ### Detailed field description
 
 - `observableId` [STRING, NOT NULL, REFERENCES(sbml.observableID)]
@@ -165,7 +174,7 @@ replicates and plot error bars.
 `observable_${observableId}`
 
 - `preequilibrationConditionId` [STRING OR NULL,
-REFERENCES(conditionsTable.conditionID)]
+REFERENCES(conditionsTable.conditionID), OPTIONAL]
 
   The `conditionId` to be used for preequilibration. E.g. for drug
   treatments the model would be preequilibrated with the no-drug condition.
@@ -186,7 +195,7 @@ condition-specific parameters used for simulation.
   Time point of the measurement in the time unit specified in the SBML model,
 numeric value or `inf` (lower-case) for steady-state measurements.
 
-- `observableParameters` [STRING OR NULL]
+- `observableParameters` [STRING OR NULL, OPTIONAL]
 
   This field allows overriding or introducing condition-specific versions of
   parameters defined in the model. The model can define observables (see above)
@@ -208,7 +217,7 @@ numeric value or `inf` (lower-case) for steady-state measurements.
   All placeholders defined in the model must be overwritten here. If there are
   not placeholders in the model, this column may be omitted.
 
-- `noiseParameters` [STRING]
+- `noiseParameters` [STRING, OPTIONAL]
 
   The measurement standard deviation or `NaN` if the corresponding sigma is a
   model parameter.
@@ -216,30 +225,35 @@ numeric value or `inf` (lower-case) for steady-state measurements.
   Numeric values or parameter names are allowed. Same rules apply as for
   `observableParameters` in the previous point.
 
-- `observableTransformation` [STRING]
+- `observableTransformation` [STRING, OPTIONAL]
 
-  Transformation of the observable. `lin`, `log` or `log10`. Defaults to 'lin'.
+  Transformation of the observable and measurement for computing the objective
+  function.
+  `lin`, `log` or `log10`. Defaults to 'lin'.
+  The measurements and model outputs are both assumed to be provided in linear
+  space.
 
-- `noiseDistribution` [STRING: 'normal' or 'laplace']
+- `noiseDistribution` [STRING: 'normal' or 'laplace', OPTIONAL]
 
-   Assumed Noise distribution for the given measurement. Only normally or
+  Assumed Noise distribution for the given measurement. Only normally or
   Laplace distributed noise is currently allowed. Defaults to `normal`. If
   `normal`, the specified `noiseParameters` will be interpreted as standard
   deviation (*not* variance).
 
-- `datasetId` [STRING, optional]
+- `datasetId` [STRING, OPTIONAL]
 
-   The datasetId is used to group certain measurements to datasets. This is 
-   typically the case for data points which belong to the same observable, 
-   the same simulation and preequilibration condition, the same noise model,
-   the same observable tranformation and the same observable parameters.
-   This grouping makes it possible to use the plotting routines which are 
-   provided in the PEtab repository. 
+  The datasetId is used to group certain measurements to datasets. This is
+  typically the case for data points which belong to the same observable,
+  the same simulation and preequilibration condition, the same noise model,
+  the same observable tranformation and the same observable parameters.
+  This grouping makes it possible to use the plotting routines which are
+  provided in the PEtab repository.
 
-- `replicateId` [STRING, optional]
+- `replicateId` [STRING, OPTIONAL]
 
-   The replicateId can be used to discern replicates with the same 
-   datasetId, which is helpful for plotting e.g. error bars.
+  The replicateId can be used to discern replicates with the same
+  datasetId, which is helpful for plotting e.g. error bars.
+
 
 ## Parameter table
 
@@ -258,10 +272,11 @@ One row per parameter with arbitrary order of rows and columns:
 
 | parameterId | [parameterName] | parameterScale | lowerBound  |upperBound | nominalValue | estimate | [priorType] | [priorParameters] |
 |---|---|---|---|---|---|---|---|---|
-|STRING|STRING|log10&#124;lin&#124;log|NUMERIC|NUMERIC|NUMERIC|0&#124;1|**TODO**|**TODO**
+|STRING|STRING|log10&#124;lin&#124;log|NUMERIC|NUMERIC|NUMERIC|0&#124;1|*see below*|*see below*
 |...|...|...|...|...|...|...|...|...|
 
 Additional columns may be added.
+
 
 ### Detailed field description:
 
@@ -291,16 +306,19 @@ Additional columns may be added.
 
   Lower bound of the parameter used for optimization.
   Optional, if `estimate==0`.
+  Must be provided in linear space, independent of `parameterScale`.
 
 - `upperBound` [NUMERIC]
 
   Upper bound of the parameter used for optimization.
   Optional, if `estimate==0`.
+  Must be provided in linear space, independent of `parameterScale`.
 
 - `nominalValue` [NUMERIC]
 
-  Some parameter value (scale as specified in `parameterScale`) to be used if
+  Some parameter value to be used if
   the parameter is not subject to estimation (see `estimate` below).
+  Must be provided in linear space, independent of `parameterScale`.
   Optional, unless `estimate==0`.
 
 - `estimate` [BOOL 0|1]
@@ -308,30 +326,29 @@ Additional columns may be added.
   1 or 0, depending on, if the parameter is estimated (1) or set to a fixed
   value(0) (see `nominalValue`).
 
-- `priorType`
+- `initializationPriorType` [STRING, OPTIONAL]
 
-  Type of prior, which is used for sampling of initial points for 
-  a possible optimization and for the objective function. Priors which are 
-  only used for sampling of initial starting points or only for optimization
-  should be specified in the additional columns `initializationPriorType` or
-  `objectivePriorType`, respectivly. Possible prior types are (see Extensions):
-  
-    - uniform: flat prior on linear parameters
-    - normal: Gaussian prior on linear parameters
-    - laplace: Laplace prior on linear parameters
-    - logNormal: exponentiated Gaussian prior on linear parameters
-    - logLaplace: exponentiated Laplace prior on linear parameters
-    - parameterScaleUniform (default): Flat prior on original parameter 
-    scale (equivalent to "no prior")
-    - parameterScaleNormal: Gaussian prior on original parameter scale
-    - parameterScaleLaplace: Laplace prior on original parameter scale
+  Prior types used for sampling of initial points for optimization. Sampled
+  points are clipped to lie inside the parameter boundaries specified by
+  `lowerBound` and `upperBound`. Defaults to `parameterScaleUniform`.
 
-- `priorParameters`
+  Possible prior types are:
 
-  Parameters for prior specified in `priorType`, separated by a semicolon. 
-  Accordingly, there are optional columns for priors which should be used for
-  initial point sampling or optimization only. (i.e., 
-  `initializationPriorParameters` and `objectivePriorParameters`, respectively)
+    - *uniform*: flat prior on linear parameters
+    - *normal*: Gaussian prior on linear parameters
+    - *laplace*: Laplace prior on linear parameters
+    - *logNormal*: exponentiated Gaussian prior on linear parameters
+    - *logLaplace*: exponentiated Laplace prior on linear parameters
+    - *parameterScaleUniform* (default): Flat prior on original parameter
+      scale (equivalent to "no prior")
+    - *parameterScaleNormal*: Gaussian prior on original parameter scale
+    - *parameterScaleLaplace*: Laplace prior on original parameter scale
+
+- `initializationPriorParameters` [STRING, OPTIONAL]
+
+  Prior parameters used for sampling of initial points for optimization,
+  separated by a semicolon. Defaults to `lowerBound;upperBound`.
+
   So far, only numeric values will be supported, no parameter names. 
   Parameters for the different prior types are:
   
@@ -344,10 +361,15 @@ Additional columns may be added.
     - parameterScaleNormal: mean; standard deviation (**not** variance)
     - parameterScaleLaplace: location; scale
 
-## Parameter estimation problems combining multiple models
+- `objectivePriorType` [STRING, OPTIONAL]
 
-[**Issue #49**](https://github.com/ICB-DCM/PEtab/issues/49)
+  Prior types used for the objective function during optimization or sampling.
+  For possible values, see `initializationPriorType`.
 
+- `objectivePriorParameters` [STRING, OPTIONAL]
+
+  Prior parameters used for the objective function during optimization.
+  For more detailed documentation, see `initializationPriorParameters`.   
 
 
 ## Visualization table
@@ -379,111 +401,100 @@ order:
 |... |  [observableId] | [NUMERIC] | [STRING] | [STRING] | [STRING] | ...
 |...|...|...|...|...|...|...|
 
+
 ### Detailed field description:
 
- - `plotId` [STRING, NOT NULL]
- 
- An ID which corresponds to a specific plot. All datasets with the same 
- plotId will be plotted into the same axes object.
- 
- - `plotName` [STRING]
- 
- A name for the specific plot.
- 
- - `plotTypeSimulation` [STRING]
- 
- The type of the corresponding plot, can be `LinePlot` or `BarPlot`. Default
- is `LinePlot`.
- 
- - `plotTypeData`
- 
- The type how replicates should be handled, can be `MeanAndSD`, 
- `MeanAndSEM`, `replicate` (for plotting all replicates separately), or 
- `provided` (if numeric values for the noise level are provided in the 
- measurement table). Default is `MeanAndSD`.
- 
- - `datasetId` [STRING, NOT NULL, REFERENCES(measurementTable.datasetId)]
- 
- The datasets, which should be grouped into one plot.
- 
- - `xValues` [STRING]
- 
- The independent variable, which will be plotted on the x-axis. Can be 
- `time` (default, for time resolved data), or it can be `parameterOrStateId` 
- for dose-response plots. The coresponding numeric values will be shown on 
- the x-axis. 
- 
- - `xOffset` [NUMERIC]
- 
- Possible data-offsets for the independent variable (default is `0`).
- 
- - `xLabel` [STRING]
- 
- Label for the x-axis.
- 
- - `xScale` [STRING]
- 
- Scale of the independent variable, can be `lin`, `log`, or `log10`.
- 
- - `yValues` [observableId, REFERENCES(measurementTable.observableId)]
- 
- The observable which should be plotted on the y-axis.
- 
- - `yOffset` [NUMERIC]
- 
- Possible data-offsets for the observable (default is `0`).
- 
- - `yLabel` [STRING]
- 
- Label for the y-axis.
- 
- - `yScale` [STRING]
- 
- Scale of the observable, can be `lin`, `log`, or `log10`.
- 
- - `legendEntry` [STRING]
- 
- The name that should be displayed for the corresponding dataset in the 
- legend and which defaults to `datasetId`.
+- `plotId` [STRING, NOT NULL]
 
-## Extensions
+  An ID which corresponds to a specific plot. All datasets with the same
+  plotId will be plotted into the same axes object.
+
+- `plotName` [STRING]
+
+  A name for the specific plot.
+
+- `plotTypeSimulation` [STRING]
+
+  The type of the corresponding plot, can be `LinePlot` or `BarPlot`. Default
+  is `LinePlot`.
+
+- `plotTypeData`
+
+  The type how replicates should be handled, can be `MeanAndSD`,
+  `MeanAndSEM`, `replicate` (for plotting all replicates separately), or
+  `provided` (if numeric values for the noise level are provided in the
+  measurement table). Default is `MeanAndSD`.
+
+ - `datasetId` [STRING, NOT NULL, REFERENCES(measurementTable.datasetId)]
+
+  The datasets, which should be grouped into one plot.
+
+ - `xValues` [STRING]
+
+  The independent variable, which will be plotted on the x-axis. Can be 
+  `time` (default, for time resolved data), or it can be `parameterOrStateId`
+  for dose-response plots. The corresponding numeric values will be shown on
+  the x-axis.
+
+ - `xOffset` [NUMERIC]
+
+  Possible data-offsets for the independent variable (default is `0`).
+
+ - `xLabel` [STRING]
+
+  Label for the x-axis.
+
+- `xScale` [STRING]
+
+  Scale of the independent variable, can be `lin`, `log`, or `log10`.
+
+- `yValues` [observableId, REFERENCES(measurementTable.observableId)]
+
+  The observable which should be plotted on the y-axis.
+
+- `yOffset` [NUMERIC]
+
+  Possible data-offsets for the observable (default is `0`).
+
+- `yLabel` [STRING]
+
+  Label for the y-axis.
+
+- `yScale` [STRING]
+
+  Scale of the observable, can be `lin`, `log`, or `log10`.
+
+- `legendEntry` [STRING]
+
+  The name that should be displayed for the corresponding dataset in the
+  legend and which defaults to `datasetId`.
+
+
+### Extensions
 
 Additional columns, such as `Color`, etc. may be specified.
 
 
-### Parameter table
+## YAML file for grouping files
 
-Extra columns
+To link the SBML model, measurement table, condition table, etc. in an
+unambiguous way, we use a [YAML](https://yaml.org/) file.
 
-- `hierarchicalOptimization` (optional)
+This file also allows specifying a PEtab version (as the format is not unlikely
+to change in the future).
 
-  hierarchicalOptimization: 1 if parameter is optimized using hierarchical
-  optimization approach. 0 otherwise.
+Furthermore, this can be used to describe parameter estimation problems
+comprising multiple models (more details below).
 
-- `initializationPriorType` (optional)
+The format is described in the schema
+[../petab/petab_schema.yaml](_static/petab_schema.yaml), which allows for
+easy validation.
 
-  Prior types used for sampling of initial point for optimization. Uses the 
-  entries from `priorType` as default, but will overwrite those, if 
-  something else is specified here. For more detailed documentation, see 
-  `priorType`.
-  
-- `initializationPriorParameters` (optional)
 
-  Prior parameters used for sampling of initial point for optimization. Uses 
-  the entries from `priorParameters` as default, but will overwrite those, if 
-  something else is specified here. For more detailed documentation, see 
-  `priorParameters`. 
+### Parameter estimation problems combining multiple models
 
-- `objectivePriorType` (optional)
-
-  Prior types used for the objective function during optimization. Uses the 
-  entries from `priorType` as default, but will overwrite those, if 
-  something else is specified here. For more detailed documentation, see 
-  `priorType`.
-  
-- `objectivePriorParameters` (optional)
-
-  Prior parameters used for the objective function during optimization. Uses 
-  the entries from `priorParameters` as default, but will overwrite those, if 
-  something else is specified here. For more detailed documentation, see 
-  `priorParameters`.   
+Parameter estimation problems can comprise multiple models. For now, PEtab
+allows to specify multiple SBML models with corresponding condition and
+measurement tables, and one joint parameter table. This means that the parameter
+namespace is global. Therefore, parameters with the same ID in different models
+will be considered identical.

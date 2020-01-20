@@ -1,12 +1,13 @@
-import pytest
-import tempfile
-import pandas as pd
-import sys
 import os
+import pickle
+import sys
+import tempfile
+from math import nan
+
 import libsbml
 import numpy as np
-import pickle
-
+import pandas as pd
+import pytest
 
 sys.path.append(os.getcwd())
 import petab  # noqa: E402
@@ -119,6 +120,7 @@ def test_split_parameter_replacement_list():
         == ['param1', 2.2]
     assert petab.split_parameter_replacement_list(np.nan) == []
     assert petab.split_parameter_replacement_list(1.5) == [1.5]
+    assert petab.split_parameter_replacement_list(None) == []
 
 
 def test_get_measurement_parameter_ids():
@@ -145,21 +147,6 @@ def test_parameter_is_scaling_parameter():
     assert petab.parameter_is_scaling_parameter('a', 'a * b') is True
     assert petab.parameter_is_scaling_parameter('a', 'a * b + 1') is False
     assert petab.parameter_is_scaling_parameter('a', 'a * a') is False
-
-
-@pytest.mark.filterwarnings("ignore::DeprecationWarning")
-def test_petab_problem(petab_problem):
-    """
-    Basic tests on petab problem.
-    """
-    assert petab_problem.get_constant_parameters() == ['fixedParameter1']
-
-
-def test_deprecation(petab_problem):
-    """
-    petab_problem.get_constant_parameters should trigger a deprecation warning
-    """
-    pytest.deprecated_call(petab_problem.get_constant_parameters)
 
 
 def test_serialization(petab_problem):
@@ -201,11 +188,13 @@ def test_get_placeholders():
         == {'noiseParameter1_oneParam'}
 
 
-def test_statpoint_sampling(fujita_model_scaling):
+def test_startpoint_sampling(fujita_model_scaling):
     startpoints = fujita_model_scaling.sample_parameter_startpoints(100)
-
     assert (np.isfinite(startpoints)).all
-    assert startpoints.shape == (19, 100)
+    assert startpoints.shape == (100, 19)
+    for sp in startpoints:
+        assert sp[0] >= np.log10(31.62) and sp[0] <= np.log10(316.23)
+        assert sp[1] >= -3 and sp[1] <= 3
 
 
 def test_create_parameter_df(condition_df_2_conditions):
@@ -241,6 +230,12 @@ def test_create_parameter_df(condition_df_2_conditions):
         observable_id='obs2',
         observable_name='Observable 2',
         observable_formula='2*x1')
+
+    # Add assignment rule target which should be ignored
+    petab.add_global_parameter(sbml_model=model,
+                               parameter_id='assignment_target')
+    petab.create_assigment_rule(sbml_model=model,
+                                assignee_id='assignment_target', formula='1.0')
 
     measurement_df = pd.DataFrame(data={
         'observableId': ['obs1', 'obs2'],
@@ -338,3 +333,36 @@ def test_flatten_timepoint_specific_output_overrides(minimal_sbml_model):
     assert problem.measurement_df.equals(measurement_df_expected) is True
 
     assert petab.lint_problem(problem) is False
+
+
+def test_concat_measurements():
+    a = pd.DataFrame({'measurement': [1.0]})
+    b = pd.DataFrame({'time': [1.0]})
+
+    with tempfile.NamedTemporaryFile(mode='w', delete=False) as fh:
+        filename_a = fh.name
+        a.to_csv(fh, sep='\t', index=False)
+
+    expected = pd.DataFrame({
+        'measurement': [1.0, nan],
+        'time': [nan, 1.0]
+    })
+
+    assert expected.equals(
+        petab.concat_tables([a, b],
+                            petab.measurements.get_measurement_df))
+
+    assert expected.equals(
+        petab.concat_tables([filename_a, b],
+                            petab.measurements.get_measurement_df))
+
+
+def test_to_float_if_float():
+    to_float_if_float = petab.core.to_float_if_float
+
+    assert to_float_if_float(1) == 1.0
+    assert to_float_if_float("1") == 1.0
+    assert to_float_if_float("-1.0") == -1.0
+    assert to_float_if_float("1e1") == 10.0
+    assert to_float_if_float("abc") == "abc"
+    assert to_float_if_float([]) == []
