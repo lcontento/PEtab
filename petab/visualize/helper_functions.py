@@ -1,10 +1,7 @@
 """
-helper_functions.py
-=========
-
 This file should contain the functions, which PEtab internally needs for
 plotting, but which are not meant to be used by non-developers and should
-hence not be direclty visible/usable when using import `petab.visualize`
+hence not be directly visible/usable when using import `petab.visualize`
 
 """
 
@@ -42,8 +39,7 @@ def import_from_files(data_file_path,
 
     # import visualization specification, if file was specified
     if visualization_file_path != '':
-        vis_spec = pd.read_csv(visualization_file_path, sep="\t",
-                               index_col=None)
+        vis_spec = petab.get_visualization_df(visualization_file_path)
     else:
         # create them based on simulation conditions
         vis_spec = get_default_vis_specs(exp_data,
@@ -57,8 +53,7 @@ def import_from_files(data_file_path,
 
     # import simulation file, if file was specified
     if simulation_file_path != '':
-        sim_data = pd.read_csv(simulation_file_path,
-                               sep="\t", index_col=None)
+        sim_data = petab.get_simulation_df(simulation_file_path)
     else:
         sim_data = None
 
@@ -165,8 +160,12 @@ def create_dataset_id_list(simcond_id_list,
         # create nicer legend entries from condition names instead of IDs
         if dataset_id not in legend_dict.keys():
             tmp = exp_conditions.loc[exp_conditions.index == cond_id]
-            legend_dict[dataset_id] = tmp.conditionName[0] + ' - ' + \
-                tmp_obs[ind]
+            try:
+                legend_dict[dataset_id] = tmp.conditionName[0] + ' - ' + \
+                    tmp_obs[ind]
+            except AttributeError:
+                legend_dict[dataset_id] = tmp.index[0] + ' - ' + \
+                    tmp_obs[ind]
 
     # add these column to the measurement table (possibly overwrite)
     if 'datasetId' in exp_data.columns:
@@ -258,6 +257,9 @@ def create_figure(uni_plot_ids):
 
     # initialize figure
     fig, ax = plt.subplots(int(num_row), int(num_col), squeeze=False)
+    # trim subplots output to the correct size
+    for axes in ax.flat[num_subplot:]:
+        axes.remove()
 
     return fig, ax, num_row, num_col
 
@@ -321,7 +323,7 @@ def get_default_vis_specs(exp_data,
     for pos, col, val in fill_vis_spec:
         vis_spec.insert(loc=pos, column=col, value=val)
 
-    return vis_spec
+    return vis_spec, exp_data
 
 
 def handle_dataset_plot(i_visu_spec,
@@ -394,31 +396,29 @@ def get_data_to_plot(vis_spec: pd.DataFrame,
     'ms'.
 
     Parameters:
-    ----------
+        vis_spec:
+            pandas data frame, contains defined data format
+            (visualization file)
+        m_data:
+            pandas data frame, contains defined data format (measurement file)
+        simulation_data:
+            pandas data frame, contains defined data format (simulation file)
+        condition_ids:
+            numpy array, containing all unique condition IDs which should be
+            plotted in one figure (can be found in measurementData file,
+            column simulationConditionId)
+        i_visu_spec:
+            int, current index (row number) of row which should be plotted in
+            visualizationSpecification file
+        col_id:
+            str, the name of the column in visualization file, whose entries
+            should be unique (depends on condition in column
+            independentVariableName)
 
-    vis_spec:
-        pandas data frame, contains defined data format (visualization file)
-    m_data:
-        pandas data frame, contains defined data format (measurement file)
-    simulation_data:
-        pandas data frame, contains defined data format (simulation file)
-    condition_ids:
-        numpy array, containing all unique condition IDs which should be
-        plotted in one figure (can be found in measurementData file,
-        column simulationConditionId)
-    i_visu_spec:
-        int, current index (row number) of row which should be plotted in
-        visualizationSpecification file
-    col_id:
-        str, the name of the column in visualization file, whose entries
-        should be unique (depends on condition in column
-        independentVariableName)
-
-    Return:
-    ----------
-
-    data_to_plot: pandas data frame containing the data which should be plotted
-    (Mean and Std)
+    Returns:
+        data_to_plot:
+            pandas.DataFrame containing the data which should be plotted
+            (Mean and Std)
     """
 
     # create empty dataframe for means and SDs
@@ -438,6 +438,10 @@ def get_data_to_plot(vis_spec: pd.DataFrame,
         # check correct observable
         bool_observable = (m_data.observableParameters[ind_meas[0]] ==
                            m_data.observableParameters)
+        # special handling, if column in m_data.observableParameters is empty
+        if (type(m_data.observableParameters[ind_meas[0]]) == np.float64) \
+                and np.isnan(m_data.observableParameters[ind_meas[0]]):
+            bool_observable = np.isnan(m_data.observableParameters)
 
         # check correct observable transformation
         bool_obs_transform = (m_data.observableTransformation[ind_meas[0]] ==

@@ -1,7 +1,7 @@
+import numpy as np
+import os
 import pandas as pd
 import petab
-import numpy as np
-
 from petab.sbml import add_global_parameter
 
 # import fixtures
@@ -12,7 +12,8 @@ pytest_plugins = [
 
 class TestGetSimulationToOptimizationParameterMapping(object):
 
-    def test_no_condition_specific(self, condition_df_2_conditions,
+    @staticmethod
+    def test_no_condition_specific(condition_df_2_conditions,
                                    minimal_sbml_model):
         # Trivial case - no condition-specific parameters
 
@@ -26,7 +27,7 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             'noiseParameters': ['', '']
         })
 
-        sbml_doc, sbml_model = minimal_sbml_model
+        _, sbml_model = minimal_sbml_model
         add_global_parameter(sbml_model, 'dynamicParameter1')
         add_global_parameter(sbml_model, 'dynamicParameter2')
         add_global_parameter(sbml_model, 'dynamicParameter3')
@@ -48,12 +49,13 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
         assert actual == expected
 
-    def test_all_override(self, condition_df_2_conditions,
+    @staticmethod
+    def test_all_override(condition_df_2_conditions,
                           minimal_sbml_model):
         # Condition-specific parameters overriding original parameters
         condition_df = condition_df_2_conditions
 
-        sbml_doc, sbml_model = minimal_sbml_model
+        _, sbml_model = minimal_sbml_model
         add_global_parameter(sbml_model, 'dynamicParameter1')
         add_global_parameter(sbml_model, 'dynamicParameter2')
         add_global_parameter(sbml_model, 'observableParameter1_obs1')
@@ -94,12 +96,22 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
         assert actual == expected
 
-    def test_partial_override(self, condition_df_2_conditions,
+        # For one case we test parallel execution, which must yield the same
+        # result
+        os.environ[petab.ENV_NUM_THREADS] = "4"
+        actual = petab.get_optimization_to_simulation_parameter_mapping(
+            measurement_df=measurement_df,
+            condition_df=condition_df,
+            sbml_model=sbml_model)
+        assert actual == expected
+
+    @staticmethod
+    def test_partial_override(condition_df_2_conditions,
                               minimal_sbml_model):
         # Condition-specific parameters, keeping original parameters
         condition_df = condition_df_2_conditions
 
-        sbml_doc, sbml_model = minimal_sbml_model
+        _, sbml_model = minimal_sbml_model
         add_global_parameter(sbml_model, 'dynamicParameter1')
         add_global_parameter(sbml_model, 'observableParameter1_obs1')
         add_global_parameter(sbml_model, 'observableParameter2_obs1')
@@ -136,9 +148,17 @@ class TestGetSimulationToOptimizationParameterMapping(object):
             sbml_model=sbml_model
         )
 
+        # Comparison with NaN containing expected results fails after pickling!
+        # Need to test first for correct NaNs, then for the rest.
+        assert np.isnan(expected[0][1]['observableParameter1_obs2'])
+        assert np.isnan(actual[0][1]['observableParameter1_obs2'])
+        expected[0][1]['observableParameter1_obs2'] = 0.0
+        actual[0][1]['observableParameter1_obs2'] = 0.0
+
         assert actual == expected
 
-    def test_parameterized_condition_table(self, minimal_sbml_model):
+    @staticmethod
+    def test_parameterized_condition_table(minimal_sbml_model):
         condition_df = pd.DataFrame(data={
             'conditionId': ['condition1', 'condition2', 'condition3'],
             'conditionName': ['', 'Condition 2', ''],
@@ -179,8 +199,9 @@ class TestGetSimulationToOptimizationParameterMapping(object):
 
         assert actual == expected
 
+    @staticmethod
     def test_parameterized_condition_table_changed_scale(
-            self, minimal_sbml_model):
+            minimal_sbml_model):
         """Test overriding a dynamic parameter `overridee` with
         - a log10 parameter to be estimated (condition 1)
         - lin parameter not estimated (condition2)
