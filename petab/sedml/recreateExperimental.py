@@ -19,19 +19,22 @@ def recreateExpDataFile(petab_folder_path):                                     
         if 'model_' in Files:
             _,sbml_file_name,_ = re.split('model_|\.',Files)
 
+    # new base path
+    base_path = './petab2sedml/' + sbml_file_name
+
     # copy all files into new folder
-    if not os.path.isdir('./petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name):
-        shutil.copytree(petab_folder_path, './petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name)
+    if not os.path.isdir(base_path + '/old_' + sbml_file_name):
+        shutil.copytree(petab_folder_path, base_path + '/old_' + sbml_file_name)
 
     # create new folder for the recreated exp_con_data file
-    if not os.path.exists('./petab2sedml/' + sbml_file_name + '/experimental_data'):
-        os.makedirs('./petab2sedml/' + sbml_file_name + '/experimental_data')
+    if not os.path.exists(base_path + '/experimental_data'):
+        os.makedirs(base_path + '/experimental_data')
 
     # all new important paths
-    new_sbml_save_path = './petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name + '/model_' + sbml_file_name + '.xml'
-    new_exp_save_path = './petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name + '/experimentalCondition_' + sbml_file_name + '.tsv'
-    new_meas_save_path = './petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name + '/measurementData_' + sbml_file_name + '.tsv'
-    new_par_save_path = './petab2sedml/' + sbml_file_name + '/old_' + sbml_file_name + '/parameters_' + sbml_file_name + '.tsv'
+    new_sbml_save_path = base_path + '/old_' + sbml_file_name + '/model_' + sbml_file_name + '.xml'
+    new_exp_save_path = base_path + '/old_' + sbml_file_name + '/experimentalCondition_' + sbml_file_name + '.tsv'
+    new_meas_save_path = base_path + '/old_' + sbml_file_name + '/measurementData_' + sbml_file_name + '.tsv'
+    new_par_save_path = base_path + '/old_' + sbml_file_name + '/parameters_' + sbml_file_name + '.tsv'
 
     # load all three .tsv files
     experimental_condition_file = pd.read_csv(new_exp_save_path, sep='\t')
@@ -73,15 +76,10 @@ def recreateExpDataFile(petab_folder_path):                                     
                 print('Two measurements for the same time point --- Multiple experimental condition files necessary!')
         exp_con_data[unique_observables[iColumn]] = pd.Series(intersect_list)
 
-    '''
-    # copy all important data from 'measurement_data_file' consisting of time and measurement
-    exp_con_data['time'] = pd.Series(measurement_file['time'][:first_change])
-    for iColumn in range(1, len(id_list)):
-        exp_con_data[id_list[iColumn]] = pd.Series(measurement_file['measurement'][(iColumn - 1)*first_change: iColumn*first_change])
-    '''
 
     # save new data frame
-    exp_con_save_path = './petab2sedml/' + sbml_file_name + '/experimental_data/' + sbml_file_name + '_model.tsv'
-    exp_con_data.to_csv(exp_con_save_path, sep='\t', index=False)
+    exp_con_save_path = [base_path + '/experimental_data/' + sbml_file_name + '_model.tsv']
+    for iExpDataFile in range(0, len(exp_con_save_path)):
+        exp_con_data.to_csv(exp_con_save_path[iExpDataFile], sep='\t', index=False)
 
-    return new_exp_save_path, new_meas_save_path, new_par_save_path, new_sbml_save_path
+    return sbml_file_name, base_path, exp_con_save_path, new_exp_save_path, new_meas_save_path, new_par_save_path, new_sbml_save_path
