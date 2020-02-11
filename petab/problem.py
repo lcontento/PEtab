@@ -1,12 +1,15 @@
 """PEtab Problem class"""
 
 import os
+import tempfile
+from warnings import warn
 
 import pandas as pd
+import libcombine
 import libsbml
 from typing import Optional, List, Union, Dict, Iterable
 from . import (parameter_mapping, measurements, conditions, parameters,
-               sampling, sbml, yaml, core)
+               sampling, sbml, yaml, core, observables, format_version)
 from .C import *  # noqa: F403
 
 
@@ -18,6 +21,7 @@ class Problem:
     - condition table
     - measurement table
     - parameter table
+    - observables table
 
     Optionally it may contain visualization tables.
 
@@ -25,6 +29,7 @@ class Problem:
         condition_df: PEtab condition table
         measurement_df: PEtab measurement table
         parameter_df: PEtab parameter table
+        observable_df: PEtab observable table
         visualization_df: PEtab visualization table
         sbml_reader: Stored to keep object alive.
         sbml_document: Stored to keep object alive.
@@ -38,12 +43,14 @@ class Problem:
                  condition_df: pd.DataFrame = None,
                  measurement_df: pd.DataFrame = None,
                  parameter_df: pd.DataFrame = None,
-                 visualization_df: pd.DataFrame = None):
+                 visualization_df: pd.DataFrame = None,
+                 observable_df: pd.DataFrame = None):
 
         self.condition_df: Optional[pd.DataFrame] = condition_df
         self.measurement_df: Optional[pd.DataFrame] = measurement_df
         self.parameter_df: Optional[pd.DataFrame] = parameter_df
         self.visualization_df: Optional[pd.DataFrame] = visualization_df
+        self.observable_df: Optional[pd.DataFrame] = observable_df
 
         self.sbml_reader: Optional[libsbml.SBMLReader] = sbml_reader
         self.sbml_document: Optional[libsbml.SBMLDocument] = sbml_document
@@ -80,9 +87,10 @@ class Problem:
     @staticmethod
     def from_files(sbml_file: str = None,
                    condition_file: str = None,
-                   measurement_file: Union[str, Iterable] = None,
+                   measurement_file: Union[str, Iterable[str]] = None,
                    parameter_file: str = None,
-                   visualization_files: Union[str, Iterable] = None
+                   visualization_files: Union[str, Iterable[str]] = None,
+                   observable_files: Union[str, Iterable[str]] = None
                    ) -> 'Problem':
         """
         Factory method to load model and tables from files.
@@ -93,22 +101,20 @@ class Problem:
             measurement_file: PEtab measurement table
             parameter_file: PEtab parameter table
             visualization_files: PEtab visualization tables
+            observable_files: PEtab observables tables
         """
 
         sbml_model = sbml_document = sbml_reader = None
         condition_df = measurement_df = parameter_df = visualization_df = None
+        observable_df = None
 
         if condition_file:
             condition_df = conditions.get_condition_df(condition_file)
 
         if measurement_file:
-            if isinstance(measurement_file, str):
-                measurement_df = measurements.get_measurement_df(
-                    measurement_file)
-            else:
-                # If there are multiple tables, we will merge them
-                measurement_df = core.concat_tables(
-                    measurement_file, measurements.get_measurement_df)
+            # If there are multiple tables, we will merge them
+            measurement_df = core.concat_tables(
+                measurement_file, measurements.get_measurement_df)
 
         if parameter_file:
             parameter_df = parameters.get_parameter_df(parameter_file)
@@ -123,9 +129,15 @@ class Problem:
             visualization_df = core.concat_tables(
                 visualization_files, core.get_visualization_df)
 
+        if observable_files:
+            # If there are multiple tables, we will merge them
+            observable_df = core.concat_tables(
+                observable_files, observables.get_observable_df)
+
         return Problem(condition_df=condition_df,
                        measurement_df=measurement_df,
                        parameter_df=parameter_df,
+                       observable_df=observable_df,
                        sbml_model=sbml_model,
                        sbml_document=sbml_document,
                        sbml_reader=sbml_reader,
@@ -151,6 +163,11 @@ class Problem:
                              'Consider using '
                              'petab.CompositeProblem.from_yaml() instead.')
 
+        if yaml_config[FORMAT_VERSION] != format_version.__format_version__:
+            raise ValueError("Provided PEtab files are of unsupported version"
+                             f"{yaml_config[FORMAT_VERSION]}. Expected "
+                             f"{format_version.__format_version__}.")
+
         problem0 = yaml_config['problems'][0]
 
         yaml.assert_single_condition_and_sbml_file(problem0)
@@ -163,8 +180,12 @@ class Problem:
                 path_prefix, problem0[CONDITION_FILES][0]),
             parameter_file=os.path.join(
                 path_prefix, yaml_config[PARAMETER_FILE]),
-            visualization_files=[os.path.join(path_prefix, f)
-                                 for f in problem0[VISUALIZATION_FILES]]
+            visualization_files=[
+                os.path.join(path_prefix, f)
+                for f in problem0.get(VISUALIZATION_FILES, [])],
+            observable_files=[
+                os.path.join(path_prefix, f)
+                for f in problem0.get(OBSERVABLE_FILES, [])]
         )
 
     @staticmethod
@@ -188,6 +209,9 @@ class Problem:
                 If specified, overrides the model component in the file names.
                 Defaults to the last component of ``folder``.
         """
+        warn("This function will be removed in future releases. "
+             "Consider using a PEtab YAML file for grouping files",
+             DeprecationWarning)
 
         folder = os.path.abspath(folder)
         if model_name is None:
@@ -201,25 +225,142 @@ class Problem:
             sbml_file=get_default_sbml_file_name(model_name, folder),
         )
 
+    @staticmethod
+    def from_combine(filename: str) -> 'Problem':
+        """Read PEtab COMBINE archive (http://co.mbine.org/documents/archive).
+
+        See also ``create_combine_archive``.
+
+        Arguments:
+            filename: Path to the PEtab-COMBINE archive
+
+        Returns:
+            A ``petab.Problem`` instance.
+        """
+
+        archive = libcombine.CombineArchive()
+        if archive.initializeFromArchive(filename) is None:
+            print(f"Invalid Combine Archive: {filename}")
+            return None
+
+        with tempfile.TemporaryDirectory() as tmpdirname:
+            archive.extractTo(tmpdirname)
+            problem = Problem.from_yaml(
+                os.path.join(tmpdirname,
+                             archive.getMasterFile().getLocation()))
+        archive.cleanUp()
+
+        return problem
+
+    def to_files(self,
+                 sbml_file: Optional[str] = None,
+                 condition_file: Optional[str] = None,
+                 measurement_file: Optional[str] = None,
+                 parameter_file: Optional[str] = None,
+                 visualization_file: Optional[str] = None,
+                 observable_file: Optional[str] = None) -> None:
+        """
+        Write PEtab tables to files for this problem
+
+        Writes PEtab files for those entities for which a destination was
+        passed.
+
+        NOTE: If this instance was created from multiple measurement or
+        visualization tables, they will be merged and written to a single file.
+
+        Arguments:
+            sbml_file: SBML model destination
+            condition_file: Condition table destination
+            measurement_file: Measurement table destination
+            parameter_file: Parameter table destination
+            visualization_file: Visualization table destination
+            observable_file: Observables table destination
+
+        Raises:
+            ValueError: If a destination was provided for a non-existing
+            entity.
+        """
+
+        if sbml_file:
+            if self.sbml_document is not None:
+                sbml.write_sbml(self.sbml_document, sbml_file)
+            else:
+                raise ValueError("Unable to save SBML model with no "
+                                 "sbml_doc set.")
+
+        def error(name: str) -> ValueError:
+            return ValueError(f"Unable to save non-existent {name} table")
+
+        if condition_file:
+            if self.condition_df is not None:
+                conditions.write_condition_df(self.condition_df,
+                                              condition_file)
+            else:
+                raise error("condition")
+
+        if measurement_file:
+            if self.measurement_df is not None:
+                measurements.write_measurement_df(self.measurement_df,
+                                                  measurement_file)
+            else:
+                raise error("measurement")
+
+        if parameter_file:
+            if self.parameter_df is not None:
+                parameters.write_parameter_df(self.parameter_df,
+                                              parameter_file)
+            else:
+                raise error("parameter")
+
+        if observable_file:
+            if self.observable_df is not None:
+                observables.write_observable_df(self.observable_df,
+                                                observable_file)
+            else:
+                raise error("observable")
+
+        if visualization_file:
+            if self.visualization_df is not None:
+                core.write_visualization_df(self.visualization_df,
+                                            visualization_file)
+            else:
+                raise error("visualization")
+
     def get_optimization_parameters(self):
         """
         Return list of optimization parameter IDs.
 
-        See get_optimization_parameters.
+        See ``petab.parameters.get_optimization_parameters``.
         """
         return parameters.get_optimization_parameters(self.parameter_df)
 
-    def get_dynamic_simulation_parameters(self):
-        """See `get_model_parameters`"""
+    def get_optimization_parameter_scales(self):
+        """
+        Return list of optimization parameter scaling strings.
+
+        See ``petab.parameters.get_optimization_parameters``.
+        """
+        return parameters.get_optimization_parameter_scaling(self.parameter_df)
+
+    def get_model_parameters(self):
+        """See `petab.sbml.get_model_parameters`"""
         return sbml.get_model_parameters(self.sbml_model)
 
     def get_observables(self, remove: bool = False):
         """
-        Returns dictionary of observables definitions
+        Returns dictionary of observables definitions.
         See `assignment_rules_to_dict` for details.
         """
+        warn("This function will be removed in future releases.",
+             DeprecationWarning)
 
         return sbml.get_observables(sbml_model=self.sbml_model, remove=remove)
+
+    def get_observable_ids(self):
+        """
+        Returns dictionary of observable ids.
+        """
+        return list(self.observable_df.index)
 
     def get_sigmas(self, remove: bool = False):
         """
@@ -228,6 +369,8 @@ class Problem:
         This does not include parameter mappings defined in the measurement
         table.
         """
+        warn("This function will be removed in future releases.",
+             DeprecationWarning)
 
         return sbml.get_sigmas(sbml_model=self.sbml_model, remove=remove)
 
@@ -238,54 +381,207 @@ class Problem:
         return measurements.get_noise_distributions(
             measurement_df=self.measurement_df)
 
+    def _apply_mask(self, v: List, free: bool = True, fixed: bool = True):
+        """Apply mask of only free or only fixed values.
+
+        Parameters
+        ----------
+        v:
+            The full vector the mask is to be applied to.
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        v:
+            The reduced vector with applied mask.
+        """
+        if not free and not fixed:
+            return []
+        if not free:
+            return [v[ix] for ix in self.x_fixed_indices]
+        if not fixed:
+            return [v[ix] for ix in self.x_free_indices]
+        return v
+
+    def get_x_ids(self, free: bool = True, fixed: bool = True):
+        """Generic function to get parameter ids.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+
+        Returns
+        -------
+        v:
+            The parameter ids.
+        """
+        v = list(self.parameter_df.index.values)
+        return self._apply_mask(v, free=free, fixed=fixed)
+
     @property
     def x_ids(self) -> List[str]:
         """Parameter table parameter IDs"""
-        return list(self.parameter_df.reset_index()[PARAMETER_ID])
+        return self.get_x_ids()
+
+    @property
+    def x_free_ids(self) -> List[str]:
+        """Parameter table parameter IDs, for free parameters."""
+        return self.get_x_ids(fixed=False)
+
+    @property
+    def x_fixed_ids(self) -> List[str]:
+        """Parameter table parameter IDs, for fixed parameters."""
+        return self.get_x_ids(free=False)
+
+    def get_x_nominal(self, free: bool = True, fixed: bool = True,
+                      scaled: bool = False):
+        """Generic function to get parameter nominal values.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+        scaled:
+            Whether to scale the values according to the parameter scale,
+            or return them on linear scale.
+
+        Returns
+        -------
+        v:
+            The parameter nominal values.
+        """
+        v = list(self.parameter_df[NOMINAL_VALUE])
+        if scaled:
+            v = list(parameters.map_scale(
+                v, self.parameter_df[PARAMETER_SCALE]))
+        return self._apply_mask(v, free=free, fixed=fixed)
 
     @property
     def x_nominal(self) -> List:
         """Parameter table nominal values"""
-        return list(self.parameter_df[NOMINAL_VALUE])
+        return self.get_x_nominal()
 
     @property
-    def lb(self) -> List:
-        """Parameter table lower bounds"""
-        return list(self.parameter_df[LOWER_BOUND])
+    def x_nominal_free(self) -> List:
+        """Parameter table nominal values, for free parameters."""
+        return self.get_x_nominal(fixed=False)
 
     @property
-    def ub(self) -> List:
-        """Parameter table upper bounds"""
-        return list(self.parameter_df[UPPER_BOUND])
+    def x_nominal_fixed(self) -> List:
+        """Parameter table nominal values, for fixed parameters."""
+        return self.get_x_nominal(free=False)
 
     @property
     def x_nominal_scaled(self) -> List:
         """Parameter table nominal values with applied parameter scaling"""
-        return list(parameters.map_scale(self.parameter_df[NOMINAL_VALUE],
-                                         self.parameter_df[PARAMETER_SCALE]))
+        return self.get_x_nominal(scaled=True)
+
+    @property
+    def x_nominal_free_scaled(self) -> List:
+        """Parameter table nominal values with applied parameter scaling,
+        for free parameters."""
+        return self.get_x_nominal(fixed=False, scaled=True)
+
+    @property
+    def x_nominal_fixed_scaled(self) -> List:
+        """Parameter table nominal values with applied parameter scaling,
+        for fixed parameters."""
+        return self.get_x_nominal(free=False, scaled=True)
+
+    def get_lb(self, free: bool = True, fixed: bool = True,
+               scaled: bool = False):
+        """Generic function to get lower parameter bounds.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+        scaled:
+            Whether to scale the values according to the parameter scale,
+            or return them on linear scale.
+
+        Returns
+        -------
+        v:
+            The lower parameter bounds.
+        """
+        v = list(self.parameter_df[LOWER_BOUND])
+        if scaled:
+            v = list(parameters.map_scale(
+                v, self.parameter_df[PARAMETER_SCALE]))
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def lb(self) -> List:
+        """Parameter table lower bounds."""
+        return self.get_lb()
 
     @property
     def lb_scaled(self) -> List:
         """Parameter table lower bounds with applied parameter scaling"""
-        return list(parameters.map_scale(self.parameter_df[LOWER_BOUND],
-                                         self.parameter_df[PARAMETER_SCALE]))
+        return self.get_lb(scaled=True)
+
+    def get_ub(self, free: bool = True, fixed: bool = True,
+               scaled: bool = False):
+        """Generic function to get upper parameter bounds.
+
+        Parameters
+        ----------
+        free:
+            Whether to return free parameters, i.e. parameters to estimate.
+        fixed:
+            Whether to return fixed parameters, i.e. parameters not to
+            estimate.
+        scaled:
+            Whether to scale the values according to the parameter scale,
+            or return them on linear scale.
+
+        Returns
+        -------
+        v:
+            The upper parameter bounds.
+        """
+        v = list(self.parameter_df[UPPER_BOUND])
+        if scaled:
+            v = list(parameters.map_scale(
+                v, self.parameter_df[PARAMETER_SCALE]))
+        return self._apply_mask(v, free=free, fixed=fixed)
+
+    @property
+    def ub(self) -> List:
+        """Parameter table upper bounds"""
+        return self.get_ub()
 
     @property
     def ub_scaled(self) -> List:
         """Parameter table upper bounds with applied parameter scaling"""
-        return list(parameters.map_scale(self.parameter_df[UPPER_BOUND],
-                                         self.parameter_df[PARAMETER_SCALE]))
+        return self.get_ub(scaled=True)
+
+    @property
+    def x_free_indices(self) -> List[int]:
+        """Parameter table estimated parameter indices."""
+        estimated = list(self.parameter_df[ESTIMATE])
+        return [j for j, val in enumerate(estimated) if val != 0]
 
     @property
     def x_fixed_indices(self) -> List[int]:
-        """Parameter table non-estimated parameter indices"""
+        """Parameter table non-estimated parameter indices."""
         estimated = list(self.parameter_df[ESTIMATE])
         return [j for j, val in enumerate(estimated) if val == 0]
-
-    @property
-    def x_fixed_vals(self) -> List:
-        """Nominal values for parameter table non-estimated parameters"""
-        return [self.x_nominal[val] for val in self.x_fixed_indices]
 
     def get_simulation_conditions_from_measurement_df(self):
         """See petab.get_simulation_conditions"""
@@ -301,8 +597,22 @@ class Problem:
                 self.condition_df,
                 self.measurement_df,
                 self.parameter_df,
+                self.observable_df,
                 self.sbml_model,
                 warn_unmapped=warn_unmapped)
+
+    def get_optimization_to_simulation_scale_mapping(
+            self, mapping_par_opt_to_par_sim: List[
+                parameter_mapping.ParMappingDictTuple]
+    ) -> List[parameter_mapping.ScaleMappingDictTuple]:
+        """
+        See get_optimization_to_simulation_scale_mapping.
+        """
+        return parameter_mapping\
+            .get_optimization_to_simulation_scale_mapping(
+                measurement_df=self.measurement_df,
+                parameter_df=self.parameter_df,
+                mapping_par_opt_to_par_sim=mapping_par_opt_to_par_sim)
 
     def create_parameter_df(self, *args, **kwargs):
         """Create a new PEtab parameter table
@@ -326,19 +636,31 @@ class Problem:
 
 def get_default_condition_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""
+    warn("This function will be removed in future releases. ",
+         DeprecationWarning)
+
     return os.path.join(folder, f"experimentalCondition_{model_name}.tsv")
 
 
 def get_default_measurement_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""
+    warn("This function will be removed in future releases. ",
+         DeprecationWarning)
+
     return os.path.join(folder, f"measurementData_{model_name}.tsv")
 
 
 def get_default_parameter_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""
+    warn("This function will be removed in future releases. ",
+         DeprecationWarning)
+
     return os.path.join(folder, f"parameters_{model_name}.tsv")
 
 
 def get_default_sbml_file_name(model_name: str, folder: str = ''):
     """Get file name according to proposed convention"""
+    warn("This function will be removed in future releases. ",
+         DeprecationWarning)
+
     return os.path.join(folder, f"model_{model_name}.xml")

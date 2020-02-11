@@ -2,7 +2,7 @@
 
 import os
 
-from typing import Dict, Union, Optional
+from typing import Any, Dict, Union, Optional
 
 import jsonschema
 import yaml
@@ -89,9 +89,11 @@ def validate_yaml_semantics(
     _check_file(os.path.join(path_prefix, yaml_config[PARAMETER_FILE]),
                 PARAMETER_FILE)
     for problem_config in yaml_config[PROBLEMS]:
-        for field in [SBML_FILES, CONDITION_FILES, MEASUREMENT_FILES]:
-            for filename in problem_config[field]:
-                _check_file(os.path.join(path_prefix, filename), field)
+        for field in [SBML_FILES, CONDITION_FILES, MEASUREMENT_FILES,
+                      VISUALIZATION_FILES, OBSERVABLE_FILES]:
+            if field in problem_config:
+                for filename in problem_config[field]:
+                    _check_file(os.path.join(path_prefix, filename), field)
 
 
 def load_yaml(yaml_config: Union[Dict, str]) -> Dict:
@@ -146,3 +148,15 @@ def assert_single_condition_and_sbml_file(problem_config: Dict) -> None:
         raise NotImplementedError(
             'Support for multiple models or condition files is not yet '
             'implemented.')
+
+
+def write_yaml(yaml_config: Dict[str, Any], filename: str) -> None:
+    """Write PEtab YAML file
+
+    Arguments:
+        yaml_config: Data to write
+        filename: File to create
+    """
+
+    with open(filename, 'w') as outfile:
+        yaml.dump(yaml_config, outfile, default_flow_style=False)

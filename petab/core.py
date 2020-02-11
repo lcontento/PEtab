@@ -1,16 +1,16 @@
 """PEtab core functions (or functions that don't fit anywhere else)"""
 
 import logging
+import os
 from typing import Iterable, Optional, Callable, Union, Any
+from warnings import warn
 
+import libcombine
 import numpy as np
 import pandas as pd
-import sympy as sp
 
-from . import sbml
-from . import problem
+from . import yaml
 from .C import *  # noqa: F403
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +27,17 @@ def get_simulation_df(simulation_file: str) -> pd.DataFrame:
     return pd.read_csv(simulation_file, sep="\t", index_col=None)
 
 
+def write_simulation_df(df: pd.DataFrame, filename: str) -> None:
+    """Write PEtab simulation table
+
+    Arguments:
+        df: PEtab simulation table
+        filename: Destination file name
+    """
+    with open(filename, 'w') as fh:
+        df.to_csv(fh, sep='\t', index=False)
+
+
 def get_visualization_df(visualization_file: str) -> pd.DataFrame:
     """Read PEtab visualization table
 
@@ -39,42 +50,15 @@ def get_visualization_df(visualization_file: str) -> pd.DataFrame:
     return pd.read_csv(visualization_file, sep="\t", index_col=None)
 
 
-def parameter_is_scaling_parameter(parameter: str, formula: str) -> bool:
-    """
-    Check if is scaling parameter.
+def write_visualization_df(df: pd.DataFrame, filename: str) -> None:
+    """Write PEtab visualization table
 
     Arguments:
-        parameter: Some identifier.
-        formula: Some sympy-compatible formula.
-
-    Returns:
-        ``True`` if parameter ``parameter`` is a scaling parameter in formula
-         ``formula``.
+        df: PEtab visualization table
+        filename: Destination file name
     """
-
-    sym_parameter = sp.sympify(parameter)
-    sym_formula = sp.sympify(formula)
-
-    return sym_parameter not in (sym_formula / sym_parameter).free_symbols
-
-
-def parameter_is_offset_parameter(parameter: str, formula: str) -> bool:
-    """
-    Check if is offset parameter.
-
-    Arguments:
-        parameter: Some identifier.
-        formula: Some sympy-compatible formula.
-
-    Returns:
-         ``True`` if parameter ``parameter`` is an offset parameter with
-         positive sign in formula ``formula``.
-    """
-
-    sym_parameter = sp.sympify(parameter)
-    sym_formula = sp.sympify(formula)
-
-    return sym_parameter not in (sym_formula - sym_parameter).free_symbols
+    with open(filename, 'w') as fh:
+        df.to_csv(fh, sep='\t', index=False)
 
 
 def get_notnull_columns(df: pd.DataFrame, candidates: Iterable):
@@ -105,6 +89,8 @@ def get_observable_id(parameter_id: str) -> str:
     Returns:
         Observable ID
     """
+    warn("This function will be removed in future releases.",
+         DeprecationWarning)
 
     if parameter_id.startswith(r'observable_'):
         return parameter_id[len('observable_'):]
@@ -116,7 +102,7 @@ def get_observable_id(parameter_id: str) -> str:
 
 
 def flatten_timepoint_specific_output_overrides(
-        petab_problem: 'problem.Problem') -> None:
+        petab_problem: 'petab.problem.Problem') -> None:
     """Flatten timepoint-specific output parameter overrides.
 
     If the PEtab problem definition has timepoint-specific
@@ -124,7 +110,8 @@ def flatten_timepoint_specific_output_overrides(
     replace those by replicating the respective observable.
 
     This is a helper function for some tools which may not support such
-    timepoint-specific mappings. The measurement table is modified in place.
+    timepoint-specific mappings. The observable table and measurement table
+    are modified in place.
 
     Arguments:
         petab_problem:
@@ -145,6 +132,8 @@ def flatten_timepoint_specific_output_overrides(
     # and simulationConditionId
     df_unique_values = df.drop_duplicates()
 
+    # replaced observables: new ID => old ID
+    replacements = dict()
     # Loop over each unique combination
     for nrow in range(len(df_unique_values.index)):
         df = petab_problem.measurement_df.loc[
@@ -168,8 +157,8 @@ def flatten_timepoint_specific_output_overrides(
                 # and unique_sc[j] in their corresponding column
                 # (full-string matches are denoted by zero)
                 idxs = (
-                        df[NOISE_PARAMETERS].str.find(cur_noise) +
-                        df[OBSERVABLE_PARAMETERS].str.find(cur_sc)
+                    df[NOISE_PARAMETERS].str.find(cur_noise) +
+                    df[OBSERVABLE_PARAMETERS].str.find(cur_sc)
                 )
                 tmp_ = df.loc[idxs == 0, OBSERVABLE_ID]
                 # Create replicate-specific observable name
@@ -182,6 +171,8 @@ def flatten_timepoint_specific_output_overrides(
                 ) == 0).any():
                     tmp = tmp_ + counter*"_" + str(i_noise + i_sc + 1)
                     counter += 1
+                if not tmp_.empty and not tmp_.empty:
+                    replacements[tmp.values[0]] = tmp_.values[0]
                 df.loc[idxs == 0, OBSERVABLE_ID] = tmp
                 # Append the result in a new df
                 df_new = df_new.append(df.loc[idxs == 0])
@@ -192,32 +183,20 @@ def flatten_timepoint_specific_output_overrides(
     # Update/Redefine measurement df with replicate-specific observables
     petab_problem.measurement_df = df_new
 
-    # Get list of already existing unique observable names
-    unique_observables = df[OBSERVABLE_ID].unique()
+    # Update observables table
+    for replacement, replacee in replacements.items():
+        new_obs = petab_problem.observable_df.loc[replacee].copy()
+        new_obs.name = replacement
+        new_obs[OBSERVABLE_FORMULA] = new_obs[OBSERVABLE_FORMULA].replace(
+            replacee, replacement)
+        new_obs[NOISE_FORMULA] = new_obs[NOISE_FORMULA].replace(
+            replacee, replacement)
+        petab_problem.observable_df = petab_problem.observable_df.append(
+            new_obs
+        )
 
-    # Remove already existing observables from the sbml model
-    for obs in unique_observables:
-        petab_problem.sbml_model.removeRuleByVariable("observable_" + obs)
-        petab_problem.sbml_model.removeSpecies(obs)
-        petab_problem.sbml_model.removeParameter(
-            'observable_' + obs)
-
-    # Redefine with replicate-specific observables in the sbml model
-    for replicate_id in petab_problem.measurement_df[OBSERVABLE_ID].unique():
-        sbml.add_global_parameter(
-            sbml_model=petab_problem.sbml_model,
-            parameter_id='observableParameter1_' + replicate_id)
-        sbml.add_global_parameter(
-            sbml_model=petab_problem.sbml_model,
-            parameter_id='noiseParameter1_' + replicate_id)
-        sbml.add_model_output(
-            sbml_model=petab_problem.sbml_model,
-            observable_id=replicate_id,
-            formula='observableParameter1_' + replicate_id)
-        sbml.add_model_output_sigma(
-            sbml_model=petab_problem.sbml_model,
-            observable_id=replicate_id,
-            formula='noiseParameter1_' + replicate_id)
+    petab_problem.observable_df.drop(index=set(replacements.values()),
+                                     inplace=True)
 
 
 def concat_tables(
@@ -250,7 +229,8 @@ def concat_tables(
         if isinstance(tmp_df, str):
             tmp_df = file_parser(tmp_df)
 
-        df = df.append(tmp_df, sort=False, ignore_index=True)
+        df = df.append(tmp_df, sort=False,
+                       ignore_index=isinstance(tmp_df.index, pd.RangeIndex))
 
     return df
 
@@ -269,3 +249,100 @@ def to_float_if_float(x: Any) -> Any:
         return float(x)
     except (ValueError, TypeError):
         return x
+
+
+def create_combine_archive(
+        yaml_file: str, filename: str,
+        family_name: Optional[str] = None,
+        given_name: Optional[str] = None,
+        email: Optional[str] = None,
+        organization: Optional[str] = None,
+) -> None:
+    """Create COMBINE archive (http://co.mbine.org/documents/archive) based
+    on PEtab YAML file.
+
+    Arguments:
+        yaml_file: Path to PEtab YAML file
+        family_name: Family name of archive creator
+        given_name: Given name of archive creator
+        email: E-mail address of archive creator
+        organization: Organization of archive creator
+    """
+
+    path_prefix = os.path.dirname(yaml_file)
+    yaml_config = yaml.load_yaml(yaml_file)
+
+    def _add_file_metadata(location: str, description: str = ""):
+        """Add metadata to the added file"""
+        omex_description = libcombine.OmexDescription()
+        omex_description.setAbout(location)
+        omex_description.setDescription(description)
+        omex_description.setCreated(
+            libcombine.OmexDescription.getCurrentDateAndTime())
+        archive.addMetadata(location, omex_description)
+
+    archive = libcombine.CombineArchive()
+
+    # Add PEtab files and metadata
+    archive.addFile(
+        yaml_file,
+        os.path.basename(yaml_file),
+        libcombine.KnownFormats.lookupFormat("yaml"),
+        True
+    )
+    _add_file_metadata(location=os.path.basename(yaml_file),
+                       description="PEtab YAML file")
+    archive.addFile(
+        os.path.join(path_prefix, yaml_config[PARAMETER_FILE]),
+        yaml_config[PARAMETER_FILE],
+        libcombine.KnownFormats.lookupFormat("tsv"),
+        False
+    )
+    _add_file_metadata(location=yaml_config[PARAMETER_FILE],
+                       description="PEtab parameter file")
+    for problem in yaml_config[PROBLEMS]:
+        for sbml_file in problem[SBML_FILES]:
+            archive.addFile(
+                os.path.join(path_prefix, sbml_file),
+                sbml_file,
+                libcombine.KnownFormats.lookupFormat("sbml"),
+                False
+            )
+            _add_file_metadata(location=sbml_file, description="SBML model")
+
+        for field in [MEASUREMENT_FILES, OBSERVABLE_FILES,
+                      VISUALIZATION_FILES, CONDITION_FILES]:
+            if field not in problem:
+                continue
+
+            for file in problem[field]:
+                archive.addFile(
+                    os.path.join(path_prefix, file),
+                    file,
+                    libcombine.KnownFormats.lookupFormat("tsv"),
+                    False
+                )
+                desc = field.split("_")[0]
+                _add_file_metadata(location=file,
+                                   description=f"PEtab {desc} file")
+
+    # Add archive metadata
+    description = libcombine.OmexDescription()
+    description.setAbout(".")
+    description.setDescription("PEtab archive")
+    description.setCreated(libcombine.OmexDescription.getCurrentDateAndTime())
+
+    # Add creator info
+    creator = libcombine.VCard()
+    if family_name:
+        creator.setFamilyName(family_name)
+    if given_name:
+        creator.setGivenName(given_name)
+    if email:
+        creator.setEmail(email)
+    if organization:
+        creator.setOrganization(organization)
+    description.addCreator(creator)
+
+    archive.addMetadata(".", description)
+    archive.writeToFile(filename)
