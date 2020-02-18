@@ -80,7 +80,8 @@ def sbml_observables_to_table(problem: Problem):
     observable_df.rename(columns={"index": OBSERVABLE_ID,
                                   "name": OBSERVABLE_NAME,
                                   "formula": OBSERVABLE_FORMULA},
-                         errors="raise", inplace=True)
+                         #errors="raise",
+                         inplace=True)
     observable_df[OBSERVABLE_ID] = observable_df[OBSERVABLE_ID].apply(
         get_observable_id)
     observable_df.set_index([OBSERVABLE_ID], inplace=True)
