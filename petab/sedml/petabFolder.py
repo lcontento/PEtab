@@ -16,3 +16,6 @@ def restructureFiles(expconfile_save_path, measdatafile_save_path, parfile_save_
     shutil.copyfile(measdatafile_save_path, final_folder_path + '/measurementData_' + sedml_file_name + '.tsv')
     shutil.copyfile(parfile_save_path, final_folder_path + '/parameters_' + sedml_file_name + '.tsv')
     shutil.copyfile(newest_sbml_save_path, final_folder_path + '/model_' + sedml_file_name + '.xml')
+
+
+    return final_folder_path

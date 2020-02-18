@@ -2,12 +2,14 @@
 
 from petab import *
 from petab.migrations import sbml_observables_to_table
+from ..yaml import *
 
 
-def update(model_name: str) -> None:
+
+def update(model_name, model_name_2):
     """Update model"""
     model_dir = f'{model_name}/'
-    yaml_file = f'{model_name}/{model_name}.yaml'
+    yaml_file = f'{model_name_2}/{model_name}.yaml'
     yaml_config = load_yaml(yaml_file)
 
     if is_composite_problem(yaml_config):
@@ -34,17 +36,13 @@ def update(model_name: str) -> None:
     )
 
 
-def observablePETAB(sedml_file_name):
-
-    # save path
-    correct_petab_name = 'observableData_' + sedml_file_name + '.tsv'
-    obsdatafile_save_path = './sedml2petab/' + sedml_file_name + '/measurement_data/' + correct_petab_name
-
+def observablesPETAB(sedml_file_name):
 
     benchmark_model = sedml_file_name
+    benchmark_model_2 = './sedml2petab/' + sedml_file_name + '/' + sedml_file_name
     print('# ', benchmark_model)
     try:
-        update(benchmark_model)
+        update(benchmark_model, benchmark_model_2)
     except RuntimeError as e:
         print(e)
 

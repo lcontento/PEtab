@@ -14,6 +14,7 @@ from .extendSBML import *
 from .petabFolder import *
 from .createObservable import *
 from .createYaml import *
+from ..C import *
 
 
 def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
@@ -46,10 +47,13 @@ def sedml2petab(sedml_path, sedml_file_name, output_folder=None):
     newest_sbml_save_path = editSBML(new_sbml_save_path, sedml_file_name, parfile_save_path)
 
     # create petab folder with all ingredients
-    restructureFiles(expconfile_save_path, measdatafile_save_path, parfile_save_path, newest_sbml_save_path, sedml_file_name)
+    final_petab_order_path = restructureFiles(expconfile_save_path, measdatafile_save_path, parfile_save_path, newest_sbml_save_path, sedml_file_name)
+
+    # yaml file --- first version (needed for observablePETAB)
+    yaml_save_path = yamlCOPASI(sedml_file_name)
 
     # create observable data file by writing sbml_observables to new table
-    obsdatafile_save_path = observablePETAB(sedml_file_name)
+    obsdatafile_save_path = observablesPETAB(sedml_file_name)
 
-    # yamel file
+    # yaml file --- final version (with observables from observablesPETAB)
     yaml_save_path = yamlCOPASI(sedml_file_name)
