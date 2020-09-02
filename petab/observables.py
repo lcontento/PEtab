@@ -71,18 +71,31 @@ def get_output_parameters(observable_df: pd.DataFrame,
     Returns:
         List of output parameter IDs
     """
-    formulas = list(observable_df[OBSERVABLE_FORMULA])
-    if NOISE_FORMULA in observable_df:
-        formulas.extend(observable_df[NOISE_FORMULA])
     output_parameters = OrderedDict()
 
-    for formula in formulas:
-        free_syms = sorted(sp.sympify(formula).free_symbols,
+    def add_output_parameters(formula, excluded=None):
+        if excluded is None:
+            excluded = []
+        elif isinstance(excluded, str):
+            excluded = [excluded]
+        excluded = set(excluded)
+        excluded.add('time')
+
+        try:
+            free_syms = sorted(sp.sympify(formula).free_symbols,
                            key=lambda symbol: symbol.name)
+        except:
+            raise
         for free_sym in free_syms:
             sym = str(free_sym)
-            if sbml_model.getElementBySId(sym) is None and sym != 'time':
+            if sbml_model.getElementBySId(sym) is None and sym not in excluded:
                 output_parameters[sym] = None
+
+    for formula in observable_df[OBSERVABLE_FORMULA]:
+        add_output_parameters(formula)
+
+    for formula in observable_df[NOISE_FORMULA]:
+        add_output_parameters(formula, observable_df.index)
 
     return list(output_parameters.keys())
 
