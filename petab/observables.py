@@ -81,11 +81,8 @@ def get_output_parameters(observable_df: pd.DataFrame,
         excluded = set(excluded)
         excluded.add('time')
 
-        try:
-            free_syms = sorted(sp.sympify(formula).free_symbols,
-                           key=lambda symbol: symbol.name)
-        except:
-            raise
+        free_syms = sorted(sp.sympify(formula).free_symbols,
+                       key=lambda symbol: symbol.name)
         for free_sym in free_syms:
             sym = str(free_sym)
             if sbml_model.getElementBySId(sym) is None and sym not in excluded:
